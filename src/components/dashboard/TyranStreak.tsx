@@ -13,6 +13,27 @@ import {
 import { DEVELOPER_EMAILS } from '@/lib/constants'
 import { Flame, Skull, Egg, Eye } from 'lucide-react'
 
+// 全学習日付を取得するヘルパー（created_at と updated_at の両方を含む）
+function getAllLearnedDates(progressMap: Record<string, { watched_seconds: number; created_at: string; updated_at: string }>): Set<string> {
+  const dates = new Set<string>()
+  for (const p of Object.values(progressMap)) {
+    if (p.watched_seconds > 0) {
+      dates.add(p.created_at.split('T')[0])
+      dates.add(p.updated_at.split('T')[0])
+    }
+  }
+  return dates
+}
+
+// マイルストーン定義
+const MILESTONES = [
+  { days: 1, emoji: '🥚' },
+  { days: 3, emoji: '🦎' },
+  { days: 7, emoji: '🦖' },
+  { days: 14, emoji: '🐉' },
+  { days: 30, emoji: '👑' },
+]
+
 export function TyranStreak() {
   const navigate = useNavigate()
   const progressMap = useProgressStore((s) => s.progressMap)
@@ -25,11 +46,14 @@ export function TyranStreak() {
   const isDeveloper = user && DEVELOPER_EMAILS.includes(user.email as typeof DEVELOPER_EMAILS[number])
 
   const tyranState = useMemo<TyranState>(() => {
-    // 学習した日付を取得
-    const learnedDates = Object.values(progressMap)
-      .filter((p) => p.watched_seconds > 0)
-      .map((p) => p.updated_at)
-
+    // 学習した全日付を取得（created_at + updated_at）
+    const learnedDates: string[] = []
+    for (const p of Object.values(progressMap)) {
+      if (p.watched_seconds > 0) {
+        learnedDates.push(p.created_at)
+        learnedDates.push(p.updated_at)
+      }
+    }
     return calculateTyranState(learnedDates)
   }, [progressMap])
 
@@ -82,20 +106,14 @@ export function TyranStreak() {
     const today = new Date()
     const dayNames = ['月', '火', '水', '木', '金', '土', '日']
 
-    // 学習した日付のセット
-    const learnedDatesSet = new Set(
-      Object.values(progressMap)
-        .filter((p) => p.watched_seconds > 0)
-        .map((p) => p.updated_at.split('T')[0])
-    )
+    // 学習した日付のセット（created_at + updated_at の両方）
+    const learnedDatesSet = getAllLearnedDates(progressMap)
 
     // 30日前を起点（今日含めて30日間）
     const startDate = new Date(today)
     startDate.setDate(startDate.getDate() - 29)
 
     // startDate を含む週の月曜日まで巻き戻す
-    // getDay(): 0=日, 1=月, ..., 6=土
-    // 月曜始まりオフセット: (getDay() + 6) % 7 → 0=月, 1=火, ..., 6=日
     const mondayOffset = (startDate.getDay() + 6) % 7
     const calendarStart = new Date(startDate)
     calendarStart.setDate(calendarStart.getDate() - mondayOffset)
@@ -142,15 +160,6 @@ export function TyranStreak() {
 
     return { dayNames, weeks }
   }, [progressMap])
-
-  // マイルストーン定義
-  const MILESTONES = [
-    { days: 1, label: 'ベビー', emoji: '🥚' },
-    { days: 3, label: 'こども', emoji: '🦎' },
-    { days: 7, label: '少年', emoji: '🦖' },
-    { days: 14, label: 'おとな', emoji: '🐉' },
-    { days: 30, label: 'キング', emoji: '👑' },
-  ]
 
   return (
     <Card className="overflow-hidden p-0">
@@ -277,67 +286,68 @@ export function TyranStreak() {
         </div>
 
         {/* 30日間カレンダー */}
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-text-secondary">
+        <div className="mt-3 pt-3 border-t border-border">
+          {/* ヘッダー + 曜日 + グリッドをコンパクトに */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-medium text-text-secondary">
               30日間の学習記録
             </span>
-            <span className="text-xs text-text-secondary">
+            <span className="text-[10px] text-text-secondary">
               {tyranState.streakDays}/30日
             </span>
           </div>
 
           {/* 曜日ヘッダー */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
+          <div className="grid grid-cols-7 gap-[3px] mb-[3px]">
             {calendarData.dayNames.map((name) => (
-              <div key={name} className="text-center text-[10px] text-text-secondary font-medium">
+              <div key={name} className="text-center text-[8px] text-text-secondary/60">
                 {name}
               </div>
             ))}
           </div>
 
-          {/* 週グリッド */}
-          <div className="space-y-1">
+          {/* 週グリッド - GitHub風ドット */}
+          <div className="space-y-[3px]">
             {calendarData.weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-1">
+              <div key={wi} className="grid grid-cols-7 gap-[3px]">
                 {week.map((day) => (
                   <div
                     key={day.dateStr}
-                    className={`aspect-square rounded-sm flex items-center justify-center text-[9px] font-medium transition-all
+                    className={`aspect-square rounded-[3px] flex items-center justify-center transition-all
                       ${day.isFuture
-                        ? 'bg-transparent'
+                        ? ''
                         : !day.isInRange
-                          ? 'bg-transparent text-text-secondary/30'
+                          ? 'bg-gray-50'
                           : day.hasLearned
-                            ? 'bg-teal text-white'
+                            ? 'bg-emerald-400 shadow-sm'
                             : day.isToday
-                              ? 'bg-blue-50 text-navy ring-1 ring-navy'
-                              : 'bg-gray-100 text-text-secondary'
+                              ? 'ring-1 ring-navy/40 bg-blue-50'
+                              : 'bg-gray-100'
                       }`}
-                  >
-                    {day.isFuture ? '' : day.dayOfMonth}
-                  </div>
+                    title={day.isInRange ? `${day.dateStr}${day.hasLearned ? ' ✓' : ''}` : ''}
+                  />
                 ))}
               </div>
             ))}
           </div>
 
-          {/* キングティランへの道 - マイルストーン */}
+          {/* マイルストーン - コンパクトな進捗バー風 */}
           {tyranState.isAlive && (
-            <div className="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
-              {MILESTONES.map((m) => {
+            <div className="mt-2 flex items-center gap-[2px]">
+              {MILESTONES.map((m, i) => {
                 const reached = tyranState.streakDays >= m.days
+                const prev = i > 0 ? MILESTONES[i - 1].days : 0
+                const segmentWidth = ((m.days - prev) / 30) * 100
                 return (
                   <div
                     key={m.days}
-                    className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap
-                      ${reached
-                        ? 'bg-teal/10 text-teal-700'
-                        : 'bg-gray-50 text-text-secondary/50'
-                      }`}
+                    className="relative flex items-center"
+                    style={{ width: `${segmentWidth}%` }}
                   >
-                    <span>{m.emoji}</span>
-                    <span>{m.days}日</span>
+                    <div className={`h-1 w-full rounded-full ${reached ? 'bg-emerald-400' : 'bg-gray-100'}`} />
+                    <span className="absolute -top-[2px] -right-[6px] text-[10px] leading-none" title={`${m.days}日`}>
+                      {m.emoji}
+                    </span>
                   </div>
                 )
               })}
