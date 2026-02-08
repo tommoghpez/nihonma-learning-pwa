@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, RotateCcw } from 'lucide-react'
+import { Play, RotateCcw, ChevronRight } from 'lucide-react'
 import { useVideoStore } from '@/stores/useVideoStore'
 import { useProgressStore } from '@/stores/useProgressStore'
 import { Card } from '@/components/common/Card'
@@ -37,26 +37,40 @@ export function NextVideoSection() {
 
   if (nextVideos.length === 0) {
     return (
-      <div className="text-center py-4 text-text-secondary text-sm">
-        すべての動画を視聴済みです
+      <div className="text-center py-8 text-text-secondary text-sm bg-gray-50 rounded-card">
+        <div className="text-3xl mb-2">🎉</div>
+        すべての動画を視聴済みです！
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-bold text-text-primary">次に見る動画</h2>
-      {nextVideos.map((video) => {
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-text-primary">次に見る動画</h2>
+        <button
+          onClick={() => navigate('/videos')}
+          className="text-sm text-teal flex items-center gap-0.5 hover:text-teal-600 transition-colors"
+        >
+          すべて見る
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      {nextVideos.map((video, index) => {
         const progress = progressMap[video.id]
         const isResume = progress && progress.watched_seconds > 0
+        const progressPercent = isResume && video.duration_seconds
+          ? Math.round((progress.watched_seconds / video.duration_seconds) * 100)
+          : 0
 
         return (
           <Card
             key={video.id}
             onClick={() => navigate(`/videos/${video.id}`)}
-            className="flex gap-3"
+            className={`flex gap-3 animate-fade-in`}
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            <div className="relative w-28 flex-shrink-0 aspect-video rounded overflow-hidden bg-gray-200">
+            <div className="relative w-28 flex-shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-200">
               {video.thumbnail_url && (
                 <img
                   src={video.thumbnail_url}
@@ -66,20 +80,29 @@ export function NextVideoSection() {
                 />
               )}
               {video.duration_seconds != null && (
-                <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 rounded">
+                <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded">
                   {formatDuration(video.duration_seconds)}
                 </span>
               )}
+              {/* 再生進捗バー */}
+              {isResume && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
+                  <div
+                    className="h-full bg-teal"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-text-primary line-clamp-2">
+            <div className="flex-1 min-w-0 py-1">
+              <h3 className="text-sm font-medium text-text-primary line-clamp-2 leading-snug">
                 {video.title}
               </h3>
-              <div className="mt-1">
+              <div className="mt-2">
                 {isResume ? (
                   <Badge variant="warning">
                     <RotateCcw className="w-3 h-3 mr-1" />
-                    続きから再生
+                    続きから（{progressPercent}%）
                   </Badge>
                 ) : (
                   <Badge variant="navy">

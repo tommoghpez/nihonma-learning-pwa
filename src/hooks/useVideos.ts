@@ -51,6 +51,7 @@ export function useVideos() {
     filter: store.filter,
     setFilter: store.setFilter,
     sentinelRef,
+    totalCount: store.totalCount,
     syncFromYouTube: store.syncFromYouTube,
   }
 }

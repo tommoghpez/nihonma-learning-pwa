@@ -1,0 +1,27 @@
+name: YouTube Sync
+
+on:
+  schedule:
+    # 毎日深夜3時（日本時間）に実行 = UTC 18:00
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    # 手動実行も可能
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync YouTube Videos
+        run: |
+          curl -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/sync-youtube" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --fail
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Log result
+        if: always()
+        run: echo "YouTube sync completed at $(date)"

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Trophy } from 'lucide-react'
+import { Trophy, Medal, Award, Crown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Card } from '@/components/common/Card'
+import { parseAvatarString, getAvatarDataUrl } from '@/lib/avatars'
 
 interface RankingItem {
   user_id: string
   display_name: string
   completed_count: number
+  avatar_url?: string | null
 }
 
 export function TeamRanking() {
@@ -30,7 +32,7 @@ export function TeamRanking() {
           countMap.set(row.user_id, (countMap.get(row.user_id) || 0) + 1)
         }
 
-        const { data: users } = await supabase.from('users').select('id, display_name')
+        const { data: users } = await supabase.from('users').select('id, display_name, avatar_url')
         if (!users) return
 
         const items: RankingItem[] = users
@@ -38,6 +40,7 @@ export function TeamRanking() {
             user_id: u.id,
             display_name: u.display_name,
             completed_count: countMap.get(u.id) || 0,
+            avatar_url: u.avatar_url,
           }))
           .sort((a, b) => b.completed_count - a.completed_count)
 
@@ -51,10 +54,24 @@ export function TeamRanking() {
     fetchRanking()
   }, [])
 
-  if (isLoading || ranking.length < 5) return null
+  if (isLoading || ranking.length < 1) return null
 
   const topThree = ranking.slice(0, 3)
   const myRank = ranking.findIndex((r) => r.user_id === currentUser?.id) + 1
+
+  const getRankIcon = (index: number) => {
+    if (index === 0) return <Crown className="w-5 h-5 text-yellow-500" />
+    if (index === 1) return <Medal className="w-5 h-5 text-gray-400" />
+    if (index === 2) return <Award className="w-5 h-5 text-amber-600" />
+    return null
+  }
+
+  const getRankBgColor = (index: number) => {
+    if (index === 0) return 'bg-gradient-to-r from-yellow-50 to-amber-50'
+    if (index === 1) return 'bg-gradient-to-r from-gray-50 to-slate-50'
+    if (index === 2) return 'bg-gradient-to-r from-orange-50 to-amber-50'
+    return ''
+  }
 
   return (
     <div>
@@ -62,37 +79,68 @@ export function TeamRanking() {
         <Trophy className="w-5 h-5 text-warning" />
         チームランキング
       </h2>
-      <Card>
-        <div className="space-y-3">
-          {topThree.map((item, index) => (
-            <div
-              key={item.user_id}
-              className={`flex items-center justify-between ${
-                item.user_id === currentUser?.id ? 'font-bold' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className={`text-lg font-bold ${
-                  index === 0 ? 'text-warning' : index === 1 ? 'text-gray-400' : 'text-amber-700'
-                }`}>
-                  {index + 1}
-                </span>
-                <span className="text-sm text-text-primary">{item.display_name}</span>
+      <Card className="p-3">
+        <div className="space-y-2">
+          {topThree.map((item, index) => {
+            const avatarConfig = parseAvatarString(item.avatar_url)
+            const avatarUrl = getAvatarDataUrl(avatarConfig.character, avatarConfig.colorName)
+            const isMe = item.user_id === currentUser?.id
+
+            return (
+              <div
+                key={item.user_id}
+                className={`flex items-center justify-between p-3 rounded-lg transition-all ${getRankBgColor(index)} ${
+                  isMe ? 'ring-2 ring-teal ring-offset-1' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    {getRankIcon(index)}
+                  </div>
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <span className={`text-sm ${isMe ? 'font-bold text-navy' : 'text-text-primary'}`}>
+                    {item.display_name}
+                    {isMe && <span className="ml-1 text-teal text-xs">（あなた）</span>}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-navy">{item.completed_count}</span>
+                  <span className="text-xs text-text-secondary ml-1">本</span>
+                </div>
               </div>
-              <span className="text-sm text-text-secondary">{item.completed_count}本完了</span>
-            </div>
-          ))}
+            )
+          })}
           {myRank > 3 && currentUser && (
             <>
-              <div className="text-center text-text-secondary text-xs">...</div>
-              <div className="flex items-center justify-between font-bold">
+              <div className="text-center text-text-secondary text-xs py-1">・・・</div>
+              <div className={`flex items-center justify-between p-3 rounded-lg bg-teal-50 ring-2 ring-teal ring-offset-1`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg text-text-secondary">{myRank}</span>
-                  <span className="text-sm text-text-primary">{currentUser.display_name}</span>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <span className="text-sm font-bold text-text-secondary">{myRank}</span>
+                  </div>
+                  <img
+                    src={getAvatarDataUrl(
+                      parseAvatarString(currentUser.avatar_url).character,
+                      parseAvatarString(currentUser.avatar_url).colorName
+                    )}
+                    alt=""
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <span className="text-sm font-bold text-navy">
+                    {currentUser.display_name}
+                    <span className="ml-1 text-teal text-xs">（あなた）</span>
+                  </span>
                 </div>
-                <span className="text-sm text-text-secondary">
-                  {ranking[myRank - 1]?.completed_count ?? 0}本完了
-                </span>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-navy">
+                    {ranking[myRank - 1]?.completed_count ?? 0}
+                  </span>
+                  <span className="text-xs text-text-secondary ml-1">本</span>
+                </div>
               </div>
             </>
           )}

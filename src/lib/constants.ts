@@ -7,6 +7,9 @@ export const QUIZ_MAX_QUESTIONS = 5
 export const PLAYBACK_SPEEDS = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const
 export const CACHE_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 
+// 開発者メールアドレス（開発者専用ページへのアクセス許可）
+export const DEVELOPER_EMAILS = ['tim.tom.0510@gmail.com'] as const
+
 export const SUMMARY_TEMPLATE = `## この動画で学んだこと
 -
 -

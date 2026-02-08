@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useVideoStore } from '@/stores/useVideoStore'
 import { useProgressStore } from '@/stores/useProgressStore'
 import { ProgressSummary } from '@/components/dashboard/ProgressSummary'
+import { TyranStreak } from '@/components/dashboard/TyranStreak'
 import { NextVideoSection } from '@/components/dashboard/NextVideoSection'
 import { TeamRanking } from '@/components/dashboard/TeamRanking'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
@@ -31,6 +32,7 @@ export function DashboardPage() {
         <p className="text-sm text-text-secondary">学習の進捗を確認しましょう</p>
       </div>
 
+      <TyranStreak />
       <ProgressSummary />
       <NextVideoSection />
       <TeamRanking />

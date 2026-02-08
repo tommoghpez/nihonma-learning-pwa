@@ -9,7 +9,7 @@ interface YouTubePlaylistItem {
   snippet: {
     title: string
     description: string
-    thumbnails: { medium?: { url: string }; default?: { url: string } }
+    thumbnails: { high?: { url: string }; medium?: { url: string }; default?: { url: string } }
     publishedAt: string
     resourceId: { videoId: string }
     position: number
@@ -82,14 +82,20 @@ async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoDetail
 
 export async function syncVideosFromYouTube(): Promise<Video[]> {
   const playlistId = await getUploadsPlaylistId()
+  console.log('Playlist ID:', playlistId)
   const allItems: YouTubePlaylistItem[] = []
   let pageToken: string | undefined
+  let pageCount = 0
 
   do {
     const result = await fetchPlaylistItems(playlistId, pageToken)
     allItems.push(...result.items)
     pageToken = result.nextPageToken
+    pageCount++
+    console.log(`Fetched page ${pageCount}, items so far: ${allItems.length}, nextPageToken: ${pageToken}`)
   } while (pageToken)
+
+  console.log(`Total items from YouTube: ${allItems.length}`)
 
   const videoIds = allItems.map((item) => item.snippet.resourceId.videoId)
   const detailsMap = new Map<string, number>()
@@ -103,18 +109,42 @@ export async function syncVideosFromYouTube(): Promise<Video[]> {
   }
 
   const now = new Date().toISOString()
-  return allItems.map((item) => {
+
+  // ショート動画を判定する関数
+  function isShorts(item: YouTubePlaylistItem, durationSeconds: number | undefined): boolean {
+    const title = item.snippet.title.toLowerCase()
+    const desc = (item.snippet.description || '').toLowerCase()
+    const text = `${title} ${desc}`
+
+    // 1. タイトルや説明文に #shorts / #short / #youtubeshorts が含まれるか
+    if (/#shorts?\b/.test(text) || /#youtubeshorts/.test(text)) return true
+
+    // 2. 3分（180秒）以下の動画はショートとみなす
+    if (durationSeconds !== undefined && durationSeconds <= 180) return true
+
+    return false
+  }
+
+  const filteredItems = allItems.filter((item) => {
     const videoId = item.snippet.resourceId.videoId
-    return {
-      id: videoId,
-      title: item.snippet.title,
-      description: item.snippet.description || null,
-      thumbnail_url: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url || null,
-      duration_seconds: detailsMap.get(videoId) ?? null,
-      published_at: item.snippet.publishedAt,
-      playlist_position: item.snippet.position,
-      created_at: now,
-      updated_at: now,
-    }
+    const duration = detailsMap.get(videoId)
+    return !isShorts(item, duration)
   })
+
+  console.log(`After filtering shorts: ${filteredItems.length} videos`)
+
+  return filteredItems.map((item) => {
+      const videoId = item.snippet.resourceId.videoId
+      return {
+        id: videoId,
+        title: item.snippet.title.replace(/\s*#[\w\u3000-\u9FFFぁ-んァ-ヶー]+/g, '').trim(),
+        description: item.snippet.description || null,
+        thumbnail_url: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url || null,
+        duration_seconds: detailsMap.get(videoId) ?? null,
+        published_at: item.snippet.publishedAt,
+        playlist_position: item.snippet.position,
+        created_at: now,
+        updated_at: now,
+      }
+    })
 }

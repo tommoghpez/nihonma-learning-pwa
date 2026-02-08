@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchProfile: async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
@@ -54,6 +54,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data) {
       const user = data as User
       set({ user, isAdmin: user.role === 'admin' })
+    } else if (error?.code === 'PGRST116') {
+      // User not found, create new user record
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        const newUser = {
+          id: userId,
+          email: authUser.email ?? '',
+          display_name: authUser.email?.split('@')[0] ?? 'ユーザー',
+          avatar_url: null,
+          role: 'member',
+        }
+        const { error: insertError } = await supabase.from('users').insert(newUser)
+        if (!insertError) {
+          set({ user: newUser as User, isAdmin: false })
+        } else {
+          console.error('Failed to create user:', insertError)
+        }
+      }
     }
   },
 

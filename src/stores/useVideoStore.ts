@@ -12,6 +12,7 @@ interface VideoState {
   isLoading: boolean
   hasMore: boolean
   page: number
+  totalCount: number
   lastSynced: number | null
   fetchVideos: (reset?: boolean) => Promise<void>
   fetchVideoById: (id: string) => Promise<void>
@@ -23,10 +24,11 @@ interface VideoState {
 export const useVideoStore = create<VideoState>((set, get) => ({
   videos: [],
   currentVideo: null,
-  filter: { status: 'all', sortOrder: 'published_asc' },
+  filter: { status: 'all', sortOrder: 'published_desc' },
   isLoading: false,
   hasMore: true,
   page: 0,
+  totalCount: 0,
   lastSynced: null,
 
   fetchVideos: async (reset = false) => {
@@ -39,6 +41,12 @@ export const useVideoStore = create<VideoState>((set, get) => ({
     const to = from + VIDEOS_PAGE_SIZE - 1
 
     try {
+      // 総数を取得
+      if (reset) {
+        const { count } = await supabase.from('videos').select('*', { count: 'exact', head: true })
+        set({ totalCount: count ?? 0 })
+      }
+
       let query = supabase.from('videos').select('*')
 
       const { sortOrder } = state.filter
@@ -106,13 +114,21 @@ export const useVideoStore = create<VideoState>((set, get) => ({
     set({ isLoading: true })
     try {
       const videos = await syncVideosFromYouTube()
-      for (const video of videos) {
-        await supabase.from('videos').upsert(video)
+
+      // 古いデータを全て削除してから新しいデータを挿入
+      await supabase.from('videos').delete().neq('id', '')
+      await db.videos.clear()
+
+      // バッチでupsert（50件ずつ）
+      for (let i = 0; i < videos.length; i += 50) {
+        const batch = videos.slice(i, i + 50)
+        await supabase.from('videos').upsert(batch)
       }
       await db.videos.bulkPut(videos)
       set({ lastSynced: Date.now() })
       await get().fetchVideos(true)
-    } catch {
+    } catch (err) {
+      console.error('syncFromYouTube error:', err)
       set({ isLoading: false })
     }
   },

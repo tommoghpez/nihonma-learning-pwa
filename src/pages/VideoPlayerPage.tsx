@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
+import { ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import { useVideoStore } from '@/stores/useVideoStore'
 import { useWatchProgress } from '@/hooks/useWatchProgress'
 import { VideoPlayer } from '@/components/video/VideoPlayer'
@@ -88,27 +88,14 @@ export function VideoPlayerPage() {
           </label>
         </div>
 
-        {percentage >= 90 && (
-          <Button
-            onClick={() => navigate(`/videos/${id}/review`)}
-            variant="secondary"
-            className="w-full"
-          >
-            <BookOpen className="w-4 h-4 mr-2" />
-            復習に進む
-          </Button>
-        )}
-
-        {!isCompleted && percentage < 90 && (
-          <Button
-            onClick={() => navigate(`/videos/${id}/review`)}
-            variant="ghost"
-            className="w-full"
-          >
-            <BookOpen className="w-4 h-4 mr-2" />
-            復習に進む
-          </Button>
-        )}
+        <Button
+          onClick={() => navigate(`/videos/${id}/note`)}
+          variant="secondary"
+          className="w-full"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          ノートを書く
+        </Button>
 
         {currentVideo.description && (
           <div>
