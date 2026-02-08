@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { Layout } from '@/components/layout/Layout'
 import { AuthGuard } from '@/components/layout/AuthGuard'
 import { DevGuard } from '@/components/layout/DevGuard'
+import { PasswordGate } from '@/components/layout/PasswordGate'
 import { FullPageSpinner } from '@/components/common/LoadingSpinner'
 import { LoginPage } from '@/pages/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -29,6 +30,7 @@ export function App() {
   }
 
   return (
+    <PasswordGate>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
@@ -49,5 +51,6 @@ export function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </PasswordGate>
   )
 }
