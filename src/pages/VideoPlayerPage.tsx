@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { ChevronDown, ChevronUp, FileText } from 'lucide-react'
+import { ChevronDown, ChevronUp, FileText, ArrowLeft } from 'lucide-react'
 import { useVideoStore } from '@/stores/useVideoStore'
 import { useWatchProgress } from '@/hooks/useWatchProgress'
 import { VideoPlayer } from '@/components/video/VideoPlayer'
@@ -14,7 +14,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 export function VideoPlayerPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentVideo, fetchVideoById } = useVideoStore()
+  const { currentVideo, currentVideoLoading, currentVideoError, fetchVideoById } = useVideoStore()
   const playerRef = useRef<ReactPlayer | null>(null)
   const [speed, setSpeed] = useState(1.0)
   const [showDescription, setShowDescription] = useState(false)
@@ -38,7 +38,28 @@ export function VideoPlayerPage() {
   }, [lastPosition])
 
   if (!id) return null
-  if (!currentVideo) return <LoadingSpinner className="py-12" />
+
+  if (currentVideoLoading) {
+    return <LoadingSpinner className="py-12" />
+  }
+
+  if (currentVideoError || !currentVideo) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <p className="text-text-secondary mb-3">
+          {currentVideoError || '動画が見つかりませんでした'}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          戻る
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 -mx-4">

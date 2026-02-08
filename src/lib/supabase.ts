@@ -10,3 +10,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 })
+
+/**
+ * Promiseにタイムアウトを設定するユーティリティ
+ * 指定時間内に解決しない場合、Error('Request timeout') でrejectする
+ */
+export function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), ms)
+    ),
+  ])
+}

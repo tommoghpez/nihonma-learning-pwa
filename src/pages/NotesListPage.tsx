@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, Play, Calendar } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { FileText, Play, Calendar, RefreshCw } from 'lucide-react'
+import { supabase, withTimeout } from '@/lib/supabase'
 import { db } from '@/lib/db'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { Button } from '@/components/common/Button'
 
 interface NoteWithVideo {
   id: string
@@ -16,37 +17,46 @@ interface NoteWithVideo {
 }
 
 export function NotesListPage() {
-  const user = useAuthStore((s) => s.user)
+  const userId = useAuthStore((s) => s.user?.id)
   const [notes, setNotes] = useState<NoteWithVideo[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     async function loadNotes() {
-      if (!user) {
+      if (!userId) {
         setIsLoading(false)
         return
       }
       setIsLoading(true)
+      setError(null)
 
       try {
-        const { data, error } = await supabase
-          .from('summaries')
-          .select(`
-            id,
-            video_id,
-            content,
-            updated_at,
-            videos (
-              title,
-              thumbnail_url
-            )
-          `)
-          .eq('user_id', user.id)
-          .order('updated_at', { ascending: false })
+        const { data, error: queryError } = await withTimeout(
+          supabase
+            .from('summaries')
+            .select(`
+              id,
+              video_id,
+              content,
+              updated_at,
+              videos (
+                title,
+                thumbnail_url
+              )
+            `)
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false }),
+          10000
+        )
 
-        if (error) {
-          console.error('Supabase error:', error)
-          throw error
+        if (cancelled) return
+
+        if (queryError) {
+          console.error('Supabase error:', queryError)
+          throw queryError
         }
 
         if (data) {
@@ -65,37 +75,67 @@ export function NotesListPage() {
           setNotes([])
         }
       } catch (err) {
+        if (cancelled) return
         console.error('Failed to load notes:', err)
+
         // オフライン時はローカルDBから取得
-        const cached = await db.summaries
-          .where('user_id')
-          .equals(user.id)
-          .toArray()
+        try {
+          const cached = await db.summaries
+            .where('user_id')
+            .equals(userId)
+            .toArray()
 
-        const videos = await db.videos.toArray()
-        const videoMap = new Map(videos.map((v) => [v.id, v]))
+          const videos = await db.videos.toArray()
+          const videoMap = new Map(videos.map((v) => [v.id, v]))
 
-        setNotes(
-          cached
-            .map((n) => ({
-              id: n.id,
-              video_id: n.video_id,
-              content: n.content,
-              updated_at: n.updated_at,
-              video_title: videoMap.get(n.video_id)?.title,
-              video_thumbnail: videoMap.get(n.video_id)?.thumbnail_url ?? undefined,
-            }))
-            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        )
+          if (cancelled) return
+
+          setNotes(
+            cached
+              .map((n) => ({
+                id: n.id,
+                video_id: n.video_id,
+                content: n.content,
+                updated_at: n.updated_at,
+                video_title: videoMap.get(n.video_id)?.title,
+                video_thumbnail: videoMap.get(n.video_id)?.thumbnail_url ?? undefined,
+              }))
+              .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+          )
+        } catch {
+          if (!cancelled) {
+            setError('ノートの読み込みに失敗しました')
+          }
+        }
       } finally {
-        setIsLoading(false)
+        if (!cancelled) {
+          setIsLoading(false)
+        }
       }
     }
+
     loadNotes()
-  }, [user])
+    return () => { cancelled = true }
+  }, [userId])
 
   if (isLoading) {
     return <LoadingSpinner className="py-12" />
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-3">{error}</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => window.location.reload()}
+        >
+          <RefreshCw className="w-4 h-4 mr-1" />
+          再読み込み
+        </Button>
+      </div>
+    )
   }
 
   return (

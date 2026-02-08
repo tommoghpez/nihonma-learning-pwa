@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { supabase } from '@/lib/supabase'
+import { supabase, withTimeout } from '@/lib/supabase'
 import { db } from '@/lib/db'
 import { syncVideosFromYouTube } from '@/lib/youtube'
 import { VIDEOS_PAGE_SIZE } from '@/lib/constants'
@@ -8,6 +8,8 @@ import type { Video, VideoFilter } from '@/types'
 interface VideoState {
   videos: Video[]
   currentVideo: Video | null
+  currentVideoLoading: boolean
+  currentVideoError: string | null
   filter: VideoFilter
   isLoading: boolean
   hasMore: boolean
@@ -24,6 +26,8 @@ interface VideoState {
 export const useVideoStore = create<VideoState>((set, get) => ({
   videos: [],
   currentVideo: null,
+  currentVideoLoading: false,
+  currentVideoError: null,
   filter: { status: 'all', sortOrder: 'published_desc' },
   isLoading: false,
   hasMore: true,
@@ -83,21 +87,44 @@ export const useVideoStore = create<VideoState>((set, get) => ({
   },
 
   fetchVideoById: async (id: string) => {
+    set({ currentVideo: null, currentVideoLoading: true, currentVideoError: null })
+
     try {
-      const { data } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('id', id)
-        .single()
+      const { data, error } = await withTimeout(
+        supabase
+          .from('videos')
+          .select('*')
+          .eq('id', id)
+          .single(),
+        10000
+      )
+
+      if (error) throw error
+
       if (data) {
-        set({ currentVideo: data as Video })
+        set({ currentVideo: data as Video, currentVideoLoading: false })
         return
       }
     } catch {
       // fallback to IndexedDB
     }
-    const cached = await db.videos.get(id)
-    if (cached) set({ currentVideo: cached })
+
+    try {
+      const cached = await db.videos.get(id)
+      if (cached) {
+        set({ currentVideo: cached, currentVideoLoading: false })
+        return
+      }
+    } catch {
+      // IndexedDB also failed
+    }
+
+    // 両方失敗
+    set({
+      currentVideo: null,
+      currentVideoLoading: false,
+      currentVideoError: '動画が見つかりませんでした',
+    })
   },
 
   setFilter: (filter) => {

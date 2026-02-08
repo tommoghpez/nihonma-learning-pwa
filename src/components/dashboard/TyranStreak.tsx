@@ -77,11 +77,10 @@ export function TyranStreak() {
   const tyranSVG = getTyranSVG(tyranState.stage, tyranState.mood, tyranState.isAlive, frame, facingRight)
   const message = getTyranMessage(tyranState)
 
-  // 週間カレンダーを生成
-  const weekDays = useMemo(() => {
+  // 30日間カレンダーを生成（月曜始まり）
+  const calendarData = useMemo(() => {
     const today = new Date()
-    const days = []
-    const dayNames = ['日', '月', '火', '水', '木', '金', '土']
+    const dayNames = ['月', '火', '水', '木', '金', '土', '日']
 
     // 学習した日付のセット
     const learnedDatesSet = new Set(
@@ -90,23 +89,68 @@ export function TyranStreak() {
         .map((p) => p.updated_at.split('T')[0])
     )
 
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0]
-      const isToday = i === 0
-      const hasLearned = learnedDatesSet.has(dateStr)
+    // 30日前を起点（今日含めて30日間）
+    const startDate = new Date(today)
+    startDate.setDate(startDate.getDate() - 29)
 
-      days.push({
-        dayName: dayNames[date.getDay()],
-        date: date.getDate(),
-        isToday,
-        hasLearned,
-      })
+    // startDate を含む週の月曜日まで巻き戻す
+    // getDay(): 0=日, 1=月, ..., 6=土
+    // 月曜始まりオフセット: (getDay() + 6) % 7 → 0=月, 1=火, ..., 6=日
+    const mondayOffset = (startDate.getDay() + 6) % 7
+    const calendarStart = new Date(startDate)
+    calendarStart.setDate(calendarStart.getDate() - mondayOffset)
+
+    // today を含む週の日曜日まで拡張
+    const todayMondayOffset = (today.getDay() + 6) % 7
+    const sundayOffset = 6 - todayMondayOffset
+    const calendarEnd = new Date(today)
+    calendarEnd.setDate(calendarEnd.getDate() + sundayOffset)
+
+    const todayStr = today.toISOString().split('T')[0]
+    const startStr = startDate.toISOString().split('T')[0]
+
+    // 週ごとのグリッドを生成
+    const weeks: Array<Array<{
+      dateStr: string
+      dayOfMonth: number
+      isToday: boolean
+      hasLearned: boolean
+      isInRange: boolean
+      isFuture: boolean
+    }>> = []
+
+    const cursor = new Date(calendarStart)
+    while (cursor <= calendarEnd) {
+      const week: typeof weeks[0] = []
+      for (let d = 0; d < 7; d++) {
+        const dateStr = cursor.toISOString().split('T')[0]
+        const isInRange = dateStr >= startStr && dateStr <= todayStr
+        const isFuture = dateStr > todayStr
+
+        week.push({
+          dateStr,
+          dayOfMonth: cursor.getDate(),
+          isToday: dateStr === todayStr,
+          hasLearned: learnedDatesSet.has(dateStr),
+          isInRange,
+          isFuture,
+        })
+        cursor.setDate(cursor.getDate() + 1)
+      }
+      weeks.push(week)
     }
 
-    return days
+    return { dayNames, weeks }
   }, [progressMap])
+
+  // マイルストーン定義
+  const MILESTONES = [
+    { days: 1, label: 'ベビー', emoji: '🥚' },
+    { days: 3, label: 'こども', emoji: '🦎' },
+    { days: 7, label: '少年', emoji: '🦖' },
+    { days: 14, label: 'おとな', emoji: '🐉' },
+    { days: 30, label: 'キング', emoji: '👑' },
+  ]
 
   return (
     <Card className="overflow-hidden p-0">
@@ -232,28 +276,73 @@ export function TyranStreak() {
           )}
         </div>
 
-        {/* 週間カレンダー */}
+        {/* 30日間カレンダー */}
         <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex justify-between">
-            {weekDays.map((day, i) => (
-              <div key={i} className="flex flex-col items-center gap-1">
-                <span className={`text-[10px] ${day.isToday ? 'font-bold text-navy' : 'text-text-secondary'}`}>
-                  {day.dayName}
-                </span>
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all
-                    ${day.hasLearned
-                      ? 'bg-teal text-white'
-                      : day.isToday
-                        ? 'bg-navy-100 text-navy border-2 border-navy'
-                        : 'bg-gray-100 text-text-secondary'
-                    }`}
-                >
-                  {day.hasLearned ? '✓' : day.date}
-                </div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-text-secondary">
+              30日間の学習記録
+            </span>
+            <span className="text-xs text-text-secondary">
+              {tyranState.streakDays}/30日
+            </span>
+          </div>
+
+          {/* 曜日ヘッダー */}
+          <div className="grid grid-cols-7 gap-1 mb-1">
+            {calendarData.dayNames.map((name) => (
+              <div key={name} className="text-center text-[10px] text-text-secondary font-medium">
+                {name}
               </div>
             ))}
           </div>
+
+          {/* 週グリッド */}
+          <div className="space-y-1">
+            {calendarData.weeks.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-1">
+                {week.map((day) => (
+                  <div
+                    key={day.dateStr}
+                    className={`aspect-square rounded-sm flex items-center justify-center text-[9px] font-medium transition-all
+                      ${day.isFuture
+                        ? 'bg-transparent'
+                        : !day.isInRange
+                          ? 'bg-transparent text-text-secondary/30'
+                          : day.hasLearned
+                            ? 'bg-teal text-white'
+                            : day.isToday
+                              ? 'bg-blue-50 text-navy ring-1 ring-navy'
+                              : 'bg-gray-100 text-text-secondary'
+                      }`}
+                  >
+                    {day.isFuture ? '' : day.dayOfMonth}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* キングティランへの道 - マイルストーン */}
+          {tyranState.isAlive && (
+            <div className="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
+              {MILESTONES.map((m) => {
+                const reached = tyranState.streakDays >= m.days
+                return (
+                  <div
+                    key={m.days}
+                    className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap
+                      ${reached
+                        ? 'bg-teal/10 text-teal-700'
+                        : 'bg-gray-50 text-text-secondary/50'
+                      }`}
+                  >
+                    <span>{m.emoji}</span>
+                    <span>{m.days}日</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </Card>
