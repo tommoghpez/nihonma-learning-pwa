@@ -166,28 +166,34 @@ Deno.serve(async (req) => {
       return new Response('ok', { headers: corsHeaders })
     }
 
-    // 認証チェック（手動トリガーの場合）
+    // 認証チェック
     const authHeader = req.headers.get('Authorization')
     if (authHeader) {
-      // 手動トリガーの場合は認証を確認
-      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
       const token = authHeader.replace('Bearer ', '')
-      const { data: { user }, error } = await supabaseClient.auth.getUser(token)
 
-      if (error || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
+      // service_role キーによるアクセス（GitHub Actions / cron）はそのまま許可
+      if (token === SUPABASE_SERVICE_ROLE_KEY) {
+        // サーバーサイドからの呼び出し — 認証OK
+      } else {
+        // ユーザートークンの場合は認証を確認（手動トリガー）
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        const { data: { user }, error } = await supabaseClient.auth.getUser(token)
 
-      // 開発者メールのチェック
-      const DEVELOPER_EMAILS = ['tim.tom.0510@gmail.com']
-      if (!DEVELOPER_EMAILS.includes(user.email || '')) {
-        return new Response(JSON.stringify({ error: 'Forbidden: Developer only' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+        if (error || !user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+
+        // 開発者メールのチェック
+        const DEVELOPER_EMAILS = ['tim.tom.0510@gmail.com']
+        if (!DEVELOPER_EMAILS.includes(user.email || '')) {
+          return new Response(JSON.stringify({ error: 'Forbidden: Developer only' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
       }
     }
 
