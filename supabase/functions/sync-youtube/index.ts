@@ -211,19 +211,46 @@ Deno.serve(async (req) => {
     // YouTube同期実行
     const videos = await syncVideosFromYouTube()
 
-    // Supabaseに保存
+    // Supabaseに保存（upsertのみ — DELETEは使わない）
+    // ※ videosテーブルにはwatch_progress/summariesからのCASCADE外部キーがあるため
+    //    DELETEすると視聴履歴・ノートも全て消えてしまう
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // 古いデータを全て削除
-    await supabase.from('videos').delete().neq('id', '')
-
-    // バッチでupsert（50件ずつ）
+    // バッチでupsert（50件ずつ）— 既存レコードは更新、新規は挿入
     for (let i = 0; i < videos.length; i += 50) {
       const batch = videos.slice(i, i + 50)
-      const { error } = await supabase.from('videos').upsert(batch)
+      const { error } = await supabase.from('videos').upsert(batch, { onConflict: 'id' })
       if (error) {
         console.error('Upsert error:', error)
         throw error
+      }
+    }
+
+    // YouTubeから削除された動画をDBから削除（CASCADE注意：個別に処理）
+    const youtubeVideoIds = new Set(videos.map((v) => v.id))
+    const { data: existingVideos } = await supabase.from('videos').select('id')
+    if (existingVideos) {
+      const removedIds = existingVideos
+        .map((v) => v.id)
+        .filter((id) => !youtubeVideoIds.has(id))
+      if (removedIds.length > 0) {
+        console.log(`Removing ${removedIds.length} videos no longer on YouTube`)
+        // CASCADE削除を避けるため、外部キー参照がないものだけ削除
+        for (const id of removedIds) {
+          const { data: hasProgress } = await supabase
+            .from('watch_progress')
+            .select('id')
+            .eq('video_id', id)
+            .limit(1)
+          const { data: hasSummary } = await supabase
+            .from('summaries')
+            .select('id')
+            .eq('video_id', id)
+            .limit(1)
+          if ((!hasProgress || hasProgress.length === 0) && (!hasSummary || hasSummary.length === 0)) {
+            await supabase.from('videos').delete().eq('id', id)
+          }
+        }
       }
     }
 
