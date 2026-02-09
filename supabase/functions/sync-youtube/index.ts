@@ -171,9 +171,20 @@ Deno.serve(async (req) => {
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '')
 
-      // service_role キーによるアクセス（GitHub Actions / cron）はそのまま許可
-      if (token === SUPABASE_SERVICE_ROLE_KEY) {
-        // サーバーサイドからの呼び出し — 認証OK
+      // JWTのペイロードをデコードしてroleを確認
+      let isServiceRole = false
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        if (payload.role === 'service_role') {
+          isServiceRole = true
+        }
+      } catch {
+        // デコード失敗 — service_roleではない
+      }
+
+      if (isServiceRole) {
+        // サーバーサイドからの呼び出し（GitHub Actions / cron）— 認証OK
+        console.log('Authenticated as service_role')
       } else {
         // ユーザートークンの場合は認証を確認（手動トリガー）
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -217,13 +228,15 @@ Deno.serve(async (req) => {
     }
 
     // 同期履歴を記録（オプション）
-    await supabase.from('sync_logs').insert({
-      type: 'youtube',
-      video_count: videos.length,
-      synced_at: new Date().toISOString(),
-    }).catch(() => {
+    try {
+      await supabase.from('sync_logs').insert({
+        type: 'youtube',
+        video_count: videos.length,
+        synced_at: new Date().toISOString(),
+      })
+    } catch {
       // sync_logsテーブルがない場合は無視
-    })
+    }
 
     console.log(`Sync completed: ${videos.length} videos`)
 
