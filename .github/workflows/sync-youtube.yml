@@ -11,13 +11,30 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate secrets
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secret is not configured"
+            echo "Please add these secrets in GitHub repo Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "Secrets validated successfully"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Sync YouTube Videos
         run: |
-          curl -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/sync-youtube" \
+          HTTP_RESPONSE=$(curl -s -o response.txt -w "%{http_code}" -X POST \
+            "${SUPABASE_URL}/functions/v1/sync-youtube" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            --fail
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+          echo "HTTP Status: $HTTP_RESPONSE"
+          cat response.txt
+          if [ "$HTTP_RESPONSE" -ge 400 ]; then
+            echo "::error::Sync failed with HTTP $HTTP_RESPONSE"
+            exit 1
+          fi
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

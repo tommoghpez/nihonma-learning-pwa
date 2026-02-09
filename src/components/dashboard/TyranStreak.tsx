@@ -201,39 +201,39 @@ export function TyranStreak() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="p-4">
+      <div className="p-3">
         {/* ティランの歩行エリア */}
-        <div className={`relative mb-3 bg-gradient-to-b from-sky-100 to-green-100 rounded-lg overflow-hidden border-b-4 border-green-300 ${
-          tyranState.stage === 'king' ? 'h-36' : tyranState.stage === 'adult' ? 'h-28' : 'h-24'
+        <div className={`relative mb-2 bg-gradient-to-b from-sky-100 to-green-100 rounded-lg overflow-hidden border-b-4 border-green-300 ${
+          tyranState.stage === 'king' ? 'h-20' : tyranState.stage === 'adult' ? 'h-16' : 'h-14'
         }`}>
           {/* 地面の草 */}
-          <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-green-400 to-green-300" />
+          <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-t from-green-400 to-green-300" />
 
           {/* 雲（背景装飾） */}
           {tyranState.isAlive && (
             <>
-              <div className="absolute top-2 left-1/4 text-3xl opacity-30">☁️</div>
-              <div className="absolute top-4 right-1/4 text-xl opacity-20">☁️</div>
+              <div className="absolute top-1 left-1/4 text-xl opacity-30">☁️</div>
+              <div className="absolute top-3 right-1/4 text-sm opacity-20">☁️</div>
             </>
           )}
 
           {/* ティラン */}
           <div
-            className="absolute bottom-3 transition-all duration-100"
+            className="absolute bottom-1 transition-all duration-100"
             style={{
               left: `calc(50% + ${position}px - ${
-                tyranState.stage === 'king' ? 40 :
-                tyranState.stage === 'adult' ? 32 :
-                tyranState.stage === 'teen' ? 28 : 20
+                tyranState.stage === 'king' ? 24 :
+                tyranState.stage === 'adult' ? 20 :
+                tyranState.stage === 'teen' ? 16 : 12
               }px)`,
             }}
           >
             <div
               className={`${
-                tyranState.stage === 'king' ? 'w-24 h-24' :
-                tyranState.stage === 'adult' ? 'w-20 h-20' :
-                tyranState.stage === 'teen' ? 'w-16 h-16' :
-                tyranState.stage === 'child' ? 'w-14 h-14' : 'w-12 h-12'
+                tyranState.stage === 'king' ? 'w-16 h-16' :
+                tyranState.stage === 'adult' ? 'w-14 h-14' :
+                tyranState.stage === 'teen' ? 'w-12 h-12' :
+                tyranState.stage === 'child' ? 'w-10 h-10' : 'w-8 h-8'
               }`}
               dangerouslySetInnerHTML={{ __html: tyranSVG }}
             />
@@ -241,7 +241,7 @@ export function TyranStreak() {
         </div>
 
         {/* ステージ名とメッセージ */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           {tyranState.isAlive && (
             <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
               {stageInfo.name}
@@ -250,11 +250,11 @@ export function TyranStreak() {
           <p className="text-sm text-text-primary flex-1">{message}</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
 
             {/* 成長プログレス */}
             {tyranState.isAlive && tyranState.stage !== 'king' && (
-              <div className="mb-3">
+              <div className="mb-2">
                 <div className="flex justify-between text-xs text-text-secondary mb-1">
                   <span>次のステージまで</span>
                   <span>{getNextStageInfo(tyranState)}</span>
@@ -286,34 +286,34 @@ export function TyranStreak() {
         </div>
 
         {/* 30日間カレンダー */}
-        <div className="mt-3 pt-3 border-t border-border">
+        <div className="mt-2 pt-2 border-t border-border">
           {/* ヘッダー + 曜日 + グリッドをコンパクトに */}
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-medium text-text-secondary">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-text-primary">
               30日間の学習記録
             </span>
-            <span className="text-[10px] text-text-secondary">
+            <span className="text-[11px] font-medium text-text-primary">
               {tyranState.streakDays}/30日
             </span>
           </div>
 
           {/* 曜日ヘッダー */}
-          <div className="grid grid-cols-7 gap-[3px] mb-[3px]">
+          <div className="grid grid-cols-7 gap-[2px] mb-[2px]">
             {calendarData.dayNames.map((name) => (
-              <div key={name} className="text-center text-[8px] text-text-secondary/60">
+              <div key={name} className="text-center text-[9px] font-medium text-text-secondary">
                 {name}
               </div>
             ))}
           </div>
 
           {/* 週グリッド - GitHub風ドット */}
-          <div className="space-y-[3px]">
+          <div className="space-y-[2px]">
             {calendarData.weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-[3px]">
+              <div key={wi} className="grid grid-cols-7 gap-[2px]">
                 {week.map((day) => (
                   <div
                     key={day.dateStr}
-                    className={`aspect-square rounded-[3px] flex items-center justify-center transition-all
+                    className={`aspect-square rounded-[2px] flex items-center justify-center transition-all
                       ${day.isFuture
                         ? ''
                         : !day.isInRange
