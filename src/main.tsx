@@ -8,16 +8,20 @@ import './index.css'
 // PWA service worker registration
 import { registerSW } from 'virtual:pwa-register'
 
-registerSW({
+const updateSW = registerSW({
   onNeedRefresh() {
-    if (confirm('新しいバージョンが利用可能です。更新しますか？')) {
-      window.location.reload()
-    }
+    // 新バージョン検知時に即座に更新を適用
+    updateSW(true)
   },
   onOfflineReady() {
     console.log('オフラインで使用可能です')
   },
 })
+
+// 1時間ごとにSW更新チェック（Safari対策）
+setInterval(() => {
+  updateSW()
+}, 60 * 60 * 1000)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
