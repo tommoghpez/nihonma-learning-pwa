@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { ChevronDown, ChevronUp, FileText, ArrowLeft } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react'
 import { useVideoStore } from '@/stores/useVideoStore'
 import { useWatchProgress } from '@/hooks/useWatchProgress'
 import { VideoPlayer } from '@/components/video/VideoPlayer'
@@ -10,6 +10,7 @@ import { ProgressBar } from '@/components/common/ProgressBar'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SummaryEditor } from '@/components/summary/SummaryEditor'
 
 export function VideoPlayerPage() {
   const { id } = useParams<{ id: string }>()
@@ -18,6 +19,8 @@ export function VideoPlayerPage() {
   const playerRef = useRef<ReactPlayer | null>(null)
   const [speed, setSpeed] = useState(1.0)
   const [showDescription, setShowDescription] = useState(false)
+  const [hasPlayed, setHasPlayed] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const {
     isCompleted,
     lastPosition,
@@ -31,11 +34,22 @@ export function VideoPlayerPage() {
     if (id) fetchVideoById(id)
   }, [id])
 
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
+
   const handleReady = useCallback(() => {
     if (lastPosition > 0 && playerRef.current) {
       playerRef.current.seekTo(lastPosition, 'seconds')
     }
   }, [lastPosition])
+
+  const handlePlay = useCallback(() => {
+    startTracking()
+    setHasPlayed(true)
+  }, [startTracking])
 
   if (!id) return null
 
@@ -68,7 +82,7 @@ export function VideoPlayerPage() {
         videoId={id}
         playbackRate={speed}
         onReady={handleReady}
-        onPlay={startTracking}
+        onPlay={handlePlay}
         onPause={stopTracking}
       />
 
@@ -109,14 +123,9 @@ export function VideoPlayerPage() {
           </label>
         </div>
 
-        <Button
-          onClick={() => navigate(`/videos/${id}/note`)}
-          variant="secondary"
-          className="w-full"
-        >
-          <FileText className="w-4 h-4 mr-2" />
-          ノートを書く
-        </Button>
+        {hasPlayed && !isFullscreen && (
+          <SummaryEditor videoId={id} />
+        )}
 
         {currentVideo.description && (
           <div>

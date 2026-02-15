@@ -219,7 +219,7 @@ export function TyranStreak() {
 
           {/* ティラン */}
           <div
-            className="absolute bottom-1 transition-all duration-100"
+            className="absolute bottom-0 transition-all duration-100"
             style={{
               left: `calc(50% + ${position}px - ${
                 tyranState.stage === 'king' ? 24 :
