@@ -371,22 +371,22 @@ export function TyranStreak() {
           </div>
 
           {/* 曜日ヘッダー */}
-          <div className="grid grid-cols-7 gap-[2px] mb-[2px]">
+          <div className="grid grid-cols-7 gap-[1px] mb-[1px]">
             {calendarData.dayNames.map((name) => (
-              <div key={name} className="text-center text-[9px] font-medium text-text-secondary">
+              <div key={name} className="text-center text-[8px] font-medium text-text-secondary">
                 {name}
               </div>
             ))}
           </div>
 
-          {/* 週グリッド - GitHub風ドット */}
-          <div className="space-y-[2px]">
+          {/* 週グリッド - GitHub風コンパクト */}
+          <div className="space-y-[1px]">
             {calendarData.weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-[2px]">
+              <div key={wi} className="grid grid-cols-7 gap-[1px]">
                 {week.map((day) => (
                   <div
                     key={day.dateStr}
-                    className={`aspect-square rounded-[2px] flex items-center justify-center transition-all
+                    className={`h-5 rounded-[2px] flex items-center justify-center transition-all
                       ${day.isFuture
                         ? ''
                         : !day.isInRange
@@ -398,7 +398,15 @@ export function TyranStreak() {
                               : 'bg-gray-100'
                       }`}
                     title={day.isInRange ? `${day.dateStr}${day.hasLearned ? ' ✓' : ''}` : ''}
-                  />
+                  >
+                    {day.isInRange && (
+                      <span className={`text-[8px] leading-none font-medium ${
+                        day.hasLearned ? 'text-white' : day.isToday ? 'text-navy' : 'text-gray-400'
+                      }`}>
+                        {day.dayOfMonth}
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             ))}
@@ -406,7 +414,7 @@ export function TyranStreak() {
 
           {/* マイルストーン - コンパクトな進捗バー風 */}
           {tyranState.isAlive && (
-            <div className="mt-2 flex items-center gap-[2px]">
+            <div className="mt-1 flex items-center gap-[2px]">
               {MILESTONES.map((m, i) => {
                 const reached = tyranState.streakDays >= m.days
                 const prev = i > 0 ? MILESTONES[i - 1].days : 0
