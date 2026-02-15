@@ -12,6 +12,26 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Safari PWA キャッシュ強制更新（バージョン変更時にSWを再登録）
+      // このバージョンを変更するとSafariでも古いキャッシュがクリアされる
+      (function() {
+        var APP_VERSION = '2.1.0';
+        var stored = localStorage.getItem('app-version');
+        if (stored !== APP_VERSION) {
+          localStorage.setItem('app-version', APP_VERSION);
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              registrations.forEach(function(reg) { reg.unregister(); });
+              caches.keys().then(function(names) {
+                names.forEach(function(name) { caches.delete(name); });
+                if (stored) window.location.reload();
+              });
+            });
+          }
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
