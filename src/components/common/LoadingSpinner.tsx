@@ -19,10 +19,4 @@ export function LoadingSpinner({ size = 'md', className = '' }: LoadingSpinnerPr
   )
 }
 
-export function FullPageSpinner() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-bg-primary">
-      <LoadingSpinner size="lg" />
-    </div>
-  )
-}
+export { TyranLoader as FullPageSpinner } from './TyranLoader'
