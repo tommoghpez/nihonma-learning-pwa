@@ -11,7 +11,7 @@ import {
   type TyranState,
 } from '@/lib/tyran'
 import { DEVELOPER_EMAILS } from '@/lib/constants'
-import { Flame, Skull, Egg, Eye } from 'lucide-react'
+import { Egg, Eye } from 'lucide-react'
 
 const PET_COUNT_KEY = 'nihonma-tyran-pet-count'
 function getPetCount(): number {
@@ -209,59 +209,60 @@ export function TyranStreak() {
 
   return (
     <Card className="overflow-hidden p-0">
-      {/* ヘッダー */}
-      <div className={`p-4 ${tyranState.isAlive ? 'bg-gradient-to-r from-green-500 to-teal' : 'bg-gradient-to-r from-gray-400 to-gray-500'} text-white`}>
+      {/* ヘッダー（コンパクト） */}
+      <div className={`px-3 py-1.5 ${tyranState.isAlive ? 'bg-gradient-to-r from-green-500 to-teal' : 'bg-gradient-to-r from-gray-400 to-gray-500'} text-white`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-sm">
             {tyranState.isAlive ? (
-              <>
-                <Flame className="w-5 h-5" />
-                <span className="font-bold">
-                  {tyranState.streakDays > 0 ? `${tyranState.streakDays}日連続学習中！` : '今日から始めよう！'}
-                </span>
-              </>
+              <span className="font-bold">🔥 {tyranState.streakDays > 0 ? `${tyranState.streakDays}日` : 'Start!'}</span>
             ) : (
-              <>
-                <Skull className="w-5 h-5" />
-                <span className="font-bold">ティランが眠ってしまった...</span>
-              </>
+              <span className="font-bold">💤 おやすみ中</span>
             )}
-          </div>
-          <div className="flex items-center gap-2">
             {tyranState.longestStreak > 0 && (
-              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-                最長 {tyranState.longestStreak}日
+              <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full">
+                最長{tyranState.longestStreak}日
               </span>
             )}
-{isDeveloper && (
-              <button
-                onClick={() => navigate('/tyran-preview')}
-                className="p-1.5 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-                title="ティランプレビュー"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-            )}
           </div>
+          {isDeveloper && (
+            <button
+              onClick={() => navigate('/tyran-preview')}
+              className="p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+              title="ティランプレビュー"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* メインコンテンツ */}
       <div className="p-3">
-        {/* ティランの歩行エリア */}
-        <div className={`relative mb-2 bg-gradient-to-b from-sky-100 to-green-100 rounded-lg overflow-hidden border-b-4 border-green-300 ${
-          tyranState.stage === 'king' ? 'h-20' : tyranState.stage === 'adult' ? 'h-16' : 'h-14'
+        {/* ティランの歩行エリア（拡大） */}
+        <div className={`relative mb-2 bg-gradient-to-b from-sky-200 via-sky-100 to-green-100 rounded-lg overflow-hidden border-b-4 border-green-300 ${
+          tyranState.stage === 'king' ? 'h-28' : tyranState.stage === 'adult' ? 'h-24' : 'h-20'
         }`}>
-          {/* 地面の草 */}
-          <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-t from-green-400 to-green-300" />
+          {/* 地面の草（多層） */}
+          <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-green-500 via-green-400 to-green-300" />
+          {/* 草のディテール */}
+          <svg className="absolute bottom-1 left-0 right-0 h-3 w-full opacity-40" viewBox="0 0 200 10" preserveAspectRatio="none">
+            <path d="M0,10 L5,4 L10,10 L15,5 L20,10 L25,3 L30,10 L35,6 L40,10 L45,4 L50,10 L55,5 L60,10 L65,3 L70,10 L75,6 L80,10 L85,4 L90,10 L95,5 L100,10 L105,3 L110,10 L115,6 L120,10 L125,4 L130,10 L135,5 L140,10 L145,3 L150,10 L155,6 L160,10 L165,4 L170,10 L175,5 L180,10 L185,3 L190,10 L195,6 L200,10" fill="#2E7D32"/>
+          </svg>
 
-          {/* 雲（背景装飾） */}
+          {/* 太陽 */}
+          <div className="absolute top-1 right-3 text-xl" style={{ animation: 'spin 20s linear infinite' }}>☀️</div>
+
+          {/* 雲（ドリフトアニメーション） */}
           {tyranState.isAlive && (
             <>
-              <div className="absolute top-1 left-1/4 text-xl opacity-30">☁️</div>
-              <div className="absolute top-3 right-1/4 text-sm opacity-20">☁️</div>
+              <div className="absolute top-2 text-lg opacity-30" style={{ animation: 'drift 25s linear infinite' }}>☁️</div>
+              <div className="absolute top-4 text-sm opacity-20" style={{ animation: 'drift 18s linear infinite', animationDelay: '-8s' }}>☁️</div>
             </>
           )}
+
+          {/* 木（左端・右端） */}
+          <div className="absolute bottom-2 left-2 text-lg opacity-50">🌳</div>
+          <div className="absolute bottom-2 right-3 text-base opacity-40">🌲</div>
 
           {/* ティラン（タップ可能） */}
           <div
@@ -274,7 +275,7 @@ export function TyranStreak() {
                 tyranState.stage === 'adult' ? 20 :
                 tyranState.stage === 'teen' ? 16 : 12
               }px)`,
-              transform: isJumping ? 'translateY(-8px)' : 'translateY(0)',
+              transform: isJumping ? 'translateY(-20px)' : 'translateY(0)',
             }}
             onClick={handleTyranTap}
           >

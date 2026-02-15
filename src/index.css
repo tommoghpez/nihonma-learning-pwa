@@ -39,3 +39,14 @@
     overflow: hidden;
   }
 }
+
+/* ティラン背景アニメーション */
+@keyframes drift {
+  0% { transform: translateX(-20px); }
+  100% { transform: translateX(calc(100vw + 20px)); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

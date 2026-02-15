@@ -8,7 +8,6 @@ import { NextVideoSection } from '@/components/dashboard/NextVideoSection'
 import { WeeklyChallenge } from '@/components/dashboard/WeeklyChallenge'
 import { TeamActivity } from '@/components/dashboard/TeamActivity'
 import { TeamRanking } from '@/components/dashboard/TeamRanking'
-import { LearningPath } from '@/components/dashboard/LearningPath'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { NotificationBanner } from '@/components/common/NotificationBanner'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -96,17 +95,14 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* ティラン育成（スクロールなしで見える位置） */}
+      <TyranStreak />
+
       {/* 週間チャレンジ */}
       <WeeklyChallenge />
 
       {/* まず行動を促す — 次に見る動画 */}
       <NextVideoSection />
-
-      {/* ティラン育成（モチベーション） */}
-      <TyranStreak />
-
-      {/* 学習パス */}
-      <LearningPath />
 
       {/* 学習統計 */}
       <ProgressSummary />
