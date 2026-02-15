@@ -9,6 +9,7 @@ import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { Card } from '@/components/common/Card'
 import { AvatarPicker } from '@/components/profile/AvatarPicker'
+import { BadgeList } from '@/components/profile/BadgeList'
 import {
   parseAvatarString,
   avatarConfigToString,
@@ -149,6 +150,11 @@ export function ProfilePage() {
             <div className="text-[10px] text-text-secondary">学習時間</div>
           </div>
         </div>
+      </Card>
+
+      {/* 実績バッジ */}
+      <Card>
+        <BadgeList />
       </Card>
 
       <Button variant="danger" onClick={handleSignOut} className="w-full">

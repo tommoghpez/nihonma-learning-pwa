@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProgressStore } from '@/stores/useProgressStore'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -12,6 +12,24 @@ import {
 } from '@/lib/tyran'
 import { DEVELOPER_EMAILS } from '@/lib/constants'
 import { Flame, Skull, Egg, Eye } from 'lucide-react'
+
+const PET_COUNT_KEY = 'nihonma-tyran-pet-count'
+function getPetCount(): number {
+  try { return parseInt(localStorage.getItem(PET_COUNT_KEY) ?? '0', 10) } catch { return 0 }
+}
+function incrementPetCount(): number {
+  const count = getPetCount() + 1
+  localStorage.setItem(PET_COUNT_KEY, String(count))
+  return count
+}
+function getPetMessage(count: number): string {
+  if (count >= 100) return 'いつもありがとう！大好き！💖'
+  if (count >= 50) return 'もっとなでて〜！😆'
+  if (count >= 20) return 'なでなで嬉しい！😊'
+  if (count >= 10) return 'きもちいい〜♪'
+  if (count >= 5) return 'えへへ😄'
+  return 'わーい！🎵'
+}
 
 // 全学習日付を取得するヘルパー（created_at と updated_at の両方を含む）
 function getAllLearnedDates(progressMap: Record<string, { watched_seconds: number; created_at: string; updated_at: string }>): Set<string> {
@@ -41,6 +59,34 @@ export function TyranStreak() {
   const [frame, setFrame] = useState(0)
   const [position, setPosition] = useState(0) // -100 ~ 100 の範囲で位置
   const [direction, setDirection] = useState(1) // 1: 右向き, -1: 左向き
+  const [isJumping, setIsJumping] = useState(false)
+  const [hearts, setHearts] = useState<Array<{ id: number; x: number }>>([])
+  const [bubbleMessage, setBubbleMessage] = useState<string | null>(null)
+  const [petCount, setPetCount] = useState(getPetCount)
+
+  // ティランタップハンドラー
+  const handleTyranTap = useCallback(() => {
+    if (!tyranState?.isAlive) return
+
+    // ジャンプアニメーション
+    setIsJumping(true)
+    setTimeout(() => setIsJumping(false), 400)
+
+    // ハートエフェクト
+    const newHeart = { id: Date.now(), x: Math.random() * 40 - 20 }
+    setHearts((prev) => [...prev, newHeart])
+    setTimeout(() => {
+      setHearts((prev) => prev.filter((h) => h.id !== newHeart.id))
+    }, 1000)
+
+    // なでなでカウント更新
+    const count = incrementPetCount()
+    setPetCount(count)
+
+    // 吹き出しメッセージ
+    setBubbleMessage(getPetMessage(count))
+    setTimeout(() => setBubbleMessage(null), 2000)
+  }, [])
 
   // 開発者かどうか
   const isDeveloper = user && DEVELOPER_EMAILS.includes(user.email as typeof DEVELOPER_EMAILS[number])
@@ -217,17 +263,39 @@ export function TyranStreak() {
             </>
           )}
 
-          {/* ティラン */}
+          {/* ティラン（タップ可能） */}
           <div
-            className="absolute bottom-0 transition-all duration-100"
+            className={`absolute bottom-0 transition-all duration-100 cursor-pointer ${
+              isJumping ? 'animate-bounce' : ''
+            }`}
             style={{
               left: `calc(50% + ${position}px - ${
                 tyranState.stage === 'king' ? 24 :
                 tyranState.stage === 'adult' ? 20 :
                 tyranState.stage === 'teen' ? 16 : 12
               }px)`,
+              transform: isJumping ? 'translateY(-8px)' : 'translateY(0)',
             }}
+            onClick={handleTyranTap}
           >
+            {/* 吹き出し */}
+            {bubbleMessage && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white text-text-primary text-[10px] px-2 py-1 rounded-full shadow-md animate-fade-in z-10">
+                {bubbleMessage}
+              </div>
+            )}
+
+            {/* ハートエフェクト */}
+            {hearts.map((heart) => (
+              <span
+                key={heart.id}
+                className="absolute -top-4 text-sm pointer-events-none animate-slide-up"
+                style={{ left: `calc(50% + ${heart.x}px)`, opacity: 0 }}
+              >
+                ❤️
+              </span>
+            ))}
+
             <div
               className={`${
                 tyranState.stage === 'king' ? 'w-16 h-16' :
@@ -248,6 +316,11 @@ export function TyranStreak() {
             </span>
           )}
           <p className="text-sm text-text-primary flex-1">{message}</p>
+          {petCount > 0 && (
+            <span className="text-[10px] text-text-secondary">
+              なでなで×{petCount}
+            </span>
+          )}
         </div>
 
         <div className="space-y-2">

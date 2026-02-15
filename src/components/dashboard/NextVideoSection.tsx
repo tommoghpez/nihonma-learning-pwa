@@ -47,7 +47,11 @@ export function NextVideoSection() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-text-primary">次に見る動画</h2>
+        <h2 className="text-lg font-bold text-text-primary">
+          {nextVideos[0] && progressMap[nextVideos[0].id]?.watched_seconds > 0
+            ? '▶️ 続きから見る'
+            : '🎬 次はこれを見よう'}
+        </h2>
         <button
           onClick={() => navigate('/videos')}
           className="text-sm text-teal flex items-center gap-0.5 hover:text-teal-600 transition-colors"
@@ -67,10 +71,10 @@ export function NextVideoSection() {
           <Card
             key={video.id}
             onClick={() => navigate(`/videos/${video.id}`)}
-            className={`flex gap-3 animate-fade-in`}
+            className={`flex gap-3 animate-fade-in ${index === 0 ? 'ring-2 ring-teal/20 bg-teal-50/30' : ''}`}
             style={{ animationDelay: `${index * 50}ms` }}
           >
-            <div className="relative w-28 flex-shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-200">
+            <div className={`relative ${index === 0 ? 'w-36' : 'w-28'} flex-shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-200`}>
               {video.thumbnail_url && (
                 <img
                   src={video.thumbnail_url}
