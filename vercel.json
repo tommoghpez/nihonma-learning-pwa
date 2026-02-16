@@ -1,4 +1,7 @@
 {
+  "rewrites": [
+    { "source": "/((?!assets|sw\\.js|workbox-|manifest\\.webmanifest|pwa-|apple-touch-icon|favicon).*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/",
