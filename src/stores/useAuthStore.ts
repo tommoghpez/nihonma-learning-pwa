@@ -8,11 +8,13 @@ interface AuthState {
   session: Session | null
   isLoading: boolean
   isAdmin: boolean
+  isNewUser: boolean
   initialize: () => Promise<void>
   signInWithMagicLink: (email: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   updateProfile: (data: Partial<Pick<User, 'display_name' | 'avatar_url'>>) => Promise<void>
   fetchProfile: (userId: string) => Promise<void>
+  clearNewUserFlag: () => void
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   isLoading: true,
   isAdmin: false,
+  isNewUser: false,
 
   initialize: async () => {
     try {
@@ -67,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         const { error: insertError } = await supabase.from('users').insert(newUser)
         if (!insertError) {
-          set({ user: newUser as User, isAdmin: false })
+          set({ user: newUser as User, isAdmin: false, isNewUser: true })
         } else {
           console.error('Failed to create user:', insertError)
         }
@@ -85,9 +88,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: error?.message ?? null }
   },
 
+  clearNewUserFlag: () => set({ isNewUser: false }),
+
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ user: null, session: null, isAdmin: false })
+    set({ user: null, session: null, isAdmin: false, isNewUser: false })
   },
 
   updateProfile: async (data) => {

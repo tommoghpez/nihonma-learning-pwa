@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState } from 'react'
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react'
 
 // ベビーティランのピクセルデータ（happy mood）
 const BABY_PIXELS = [
@@ -50,49 +50,59 @@ function BabyTyranSVG({ size = 64 }: { size?: number }) {
   )
 }
 
-// テキストがティラン位置に到達するタイミングを計算するフック
-function useJumpTiming(containerRef: React.RefObject<HTMLDivElement | null>) {
-  const [jumpPercent, setJumpPercent] = useState(58) // デフォルト値
-
-  useEffect(() => {
-    function calculate() {
-      const container = containerRef.current
-      if (!container) return
-
-      const containerWidth = container.offsetWidth
-      const tyranLeft = 48 // left-12 = 48px
-      const textWidth = 200 // テキスト幅の推定値
-
-      // テキストは containerWidth → -textWidth まで移動
-      const totalDistance = containerWidth + textWidth
-      // テキストがティラン位置に到達する割合
-      const arrivalPercent = ((containerWidth - tyranLeft) / totalDistance) * 100
-
-      // ジャンプはテキスト到達の少し前に開始（ジャンプ頂点 = テキスト到達）
-      setJumpPercent(Math.round(arrivalPercent))
-    }
-
-    calculate()
-    window.addEventListener('resize', calculate)
-    return () => window.removeEventListener('resize', calculate)
-  }, [containerRef])
-
-  return jumpPercent
-}
+const CYCLE_MS = 2000    // 2秒サイクル（速くした）
+const TEXT_WIDTH = 140   // "MA NAVI"の推定ピクセル幅
+const TYRAN_LEFT = 48    // left-12 = 48px
 
 // 共通のゲームエリア（フルページ版・インライン版共通）
+// JSベースのアニメーションで正確にジャンプタイミングを同期
 function TyranGameArea({ compact = false }: { compact?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const jumpPercent = useJumpTiming(containerRef)
-
-  // ジャンプ開始はテキスト到達の8%前、頂点は到達時
-  const jumpStart = Math.max(0, jumpPercent - 8)
-  const jumpPeak = jumpPercent
-  const jumpEnd = Math.min(100, jumpPercent + 10)
+  const animRef = useRef<number>(0)
+  const startTimeRef = useRef<number>(0)
+  const [textX, setTextX] = useState(400)
+  const [jumpY, setJumpY] = useState(0)
 
   const gameHeight = compact ? 'h-20' : 'h-32'
   const tyranSize = compact ? 48 : 64
   const textSize = compact ? 'text-2xl' : 'text-3xl'
+
+  const animate = useCallback((timestamp: number) => {
+    if (!startTimeRef.current) startTimeRef.current = timestamp
+    const elapsed = (timestamp - startTimeRef.current) % CYCLE_MS
+    const progress = elapsed / CYCLE_MS  // 0 → 1
+
+    const containerWidth = containerRef.current?.offsetWidth ?? 384
+
+    // テキスト位置: コンテナ右端 → コンテナ左端の外（-TEXT_WIDTH）
+    const totalDistance = containerWidth + TEXT_WIDTH
+    const currentTextX = containerWidth - progress * totalDistance
+    setTextX(currentTextX)
+
+    // テキスト先端がティラン位置に到達するタイミングを計算
+    // テキスト先端(currentTextX)がTYRAN_LEFT + tyranSizeの位置を通過する時にジャンプ
+    const arrivalProgress = (containerWidth - TYRAN_LEFT - tyranSize) / totalDistance
+
+    // ジャンプ: 到達前後の区間でジャンプ
+    const jumpWindow = 0.12  // ジャンプにかける時間割合
+    const jumpStart = arrivalProgress - jumpWindow / 2
+    const jumpEnd = arrivalProgress + jumpWindow / 2
+
+    if (progress >= jumpStart && progress <= jumpEnd) {
+      const jumpProgress = (progress - jumpStart) / (jumpEnd - jumpStart)
+      // sin曲線でなめらかなジャンプ
+      setJumpY(Math.sin(jumpProgress * Math.PI) * 40)
+    } else {
+      setJumpY(0)
+    }
+
+    animRef.current = requestAnimationFrame(animate)
+  }, [tyranSize])
+
+  useEffect(() => {
+    animRef.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animRef.current)
+  }, [animate])
 
   return (
     <div ref={containerRef} className={`relative w-full max-w-sm ${gameHeight} mx-auto overflow-hidden`}>
@@ -100,14 +110,20 @@ function TyranGameArea({ compact = false }: { compact?: boolean }) {
       <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-green-400 via-green-500 to-green-400 rounded-full" />
 
       {/* ティラン（左寄り） */}
-      <div className="tyran-runner absolute bottom-2 left-12">
+      <div
+        className="absolute bottom-2 left-12"
+        style={{ transform: `translateY(-${jumpY}px)` }}
+      >
         <BabyTyranSVG size={tyranSize} />
       </div>
 
-      {/* MA NAVI テキスト（右から左に流れる） */}
-      <div className="text-runner absolute bottom-3">
+      {/* MA NAVI テキスト（JS制御で右から左に流れる） */}
+      <div
+        className="absolute bottom-3"
+        style={{ transform: `translateX(${textX}px)` }}
+      >
         <span
-          className={`${textSize} font-bold tracking-widest select-none`}
+          className={`${textSize} font-bold tracking-widest select-none whitespace-nowrap`}
           style={{
             fontFamily: '"Courier New", "Menlo", monospace',
             color: '#1B365D',
@@ -118,34 +134,6 @@ function TyranGameArea({ compact = false }: { compact?: boolean }) {
           MA NAVI
         </span>
       </div>
-
-      <style>{`
-        .text-runner {
-          animation: scrollText 3s linear infinite;
-        }
-        @keyframes scrollText {
-          0% { transform: translateX(calc(100vw)); }
-          100% { transform: translateX(-200px); }
-        }
-
-        .tyran-runner {
-          animation: jump 3s ease-in-out infinite;
-        }
-        @keyframes jump {
-          0%, ${jumpStart}% { transform: translateY(0); }
-          ${jumpPeak}% { transform: translateY(-40px); }
-          ${jumpEnd}% { transform: translateY(0); }
-          100% { transform: translateY(0); }
-        }
-
-        .tyran-sprite {
-          animation: tyranBounce 0.4s ease-in-out infinite alternate;
-        }
-        @keyframes tyranBounce {
-          0% { transform: scaleY(1); }
-          100% { transform: scaleY(0.95) scaleX(1.02); }
-        }
-      `}</style>
     </div>
   )
 }
