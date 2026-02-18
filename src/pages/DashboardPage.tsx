@@ -10,6 +10,7 @@ import { TeamActivity } from '@/components/dashboard/TeamActivity'
 import { TeamRanking } from '@/components/dashboard/TeamRanking'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { NotificationBanner } from '@/components/common/NotificationBanner'
+import { InstallBanner } from '@/components/common/InstallBanner'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
 export function DashboardPage() {
@@ -64,6 +65,9 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* ホーム画面追加ガイド */}
+      <InstallBanner />
+
       {/* アプリ内通知バナー */}
       <NotificationBanner />
 
