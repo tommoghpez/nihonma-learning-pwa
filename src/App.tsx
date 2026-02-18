@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { Layout } from '@/components/layout/Layout'
 import { AuthGuard } from '@/components/layout/AuthGuard'
 import { DevGuard } from '@/components/layout/DevGuard'
+import { AdminGuard } from '@/components/layout/AdminGuard'
 import { PasswordGate } from '@/components/layout/PasswordGate'
 import { FullPageSpinner } from '@/components/common/LoadingSpinner'
 import { LoginPage } from '@/pages/LoginPage'
@@ -16,6 +17,7 @@ import { SearchPage } from '@/pages/SearchPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { TyranPreviewPage } from '@/pages/TyranPreviewPage'
+import { AdminPage } from '@/pages/AdminPage'
 
 export function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -48,6 +50,7 @@ export function App() {
         <Route path="search" element={<SearchPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="tyran-preview" element={<DevGuard><TyranPreviewPage /></DevGuard>} />
+        <Route path="admin" element={<AdminGuard><AdminPage /></AdminGuard>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

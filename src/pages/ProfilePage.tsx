@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { LogOut, Save, Pencil, BookOpen, CheckCircle2, Clock, MessageSquarePlus, Bug, Lightbulb, Send, ChevronDown, ChevronUp } from 'lucide-react'
+import { LogOut, Save, Pencil, BookOpen, CheckCircle2, Clock, MessageSquarePlus, Bug, Lightbulb, Send, Shield } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useProgressStore } from '@/stores/useProgressStore'
@@ -11,7 +11,6 @@ import { Card } from '@/components/common/Card'
 import { AvatarPicker } from '@/components/profile/AvatarPicker'
 import { BadgeList } from '@/components/profile/BadgeList'
 import { supabase } from '@/lib/supabase'
-import { DEVELOPER_EMAILS } from '@/lib/constants'
 import {
   parseAvatarString,
   avatarConfigToString,
@@ -19,18 +18,9 @@ import {
   type AvatarConfig,
 } from '@/lib/avatars'
 
-interface FeedbackItem {
-  id: string
-  user_id: string
-  type: 'request' | 'bug'
-  content: string
-  created_at: string
-  user_name?: string
-}
-
 export function ProfilePage() {
   const navigate = useNavigate()
-  const { user, signOut, updateProfile, isNewUser, clearNewUserFlag } = useAuthStore()
+  const { user, signOut, updateProfile, isNewUser, clearNewUserFlag, isAdmin } = useAuthStore()
   const addToast = useUIStore((s) => s.addToast)
   const progressMap = useProgressStore((s) => s.progressMap)
   const totalCount = useVideoStore((s) => s.totalCount)
@@ -46,12 +36,6 @@ export function ProfilePage() {
   const [feedbackType, setFeedbackType] = useState<'request' | 'bug'>('request')
   const [feedbackContent, setFeedbackContent] = useState('')
   const [sendingFeedback, setSendingFeedback] = useState(false)
-
-  // 開発者用：フィードバック一覧
-  const isDeveloper = user && DEVELOPER_EMAILS.includes(user.email as typeof DEVELOPER_EMAILS[number])
-  const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([])
-  const [showFeedbackList, setShowFeedbackList] = useState(false)
-  const [loadingFeedback, setLoadingFeedback] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -119,42 +103,6 @@ export function ProfilePage() {
     } else {
       addToast('送信に失敗しました。もう一度お試しください', 'error')
     }
-  }
-
-  // 開発者用：フィードバック一覧取得
-  const fetchFeedbackList = async () => {
-    if (!isDeveloper) return
-    setLoadingFeedback(true)
-    // フィードバック取得
-    const { data } = await supabase
-      .from('feedback')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (data) {
-      // ユーザー名を取得
-      const userIds = [...new Set(data.map((f: FeedbackItem) => f.user_id))]
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, display_name')
-        .in('id', userIds)
-
-      const userMap = new Map(users?.map((u: { id: string; display_name: string }) => [u.id, u.display_name]) ?? [])
-      setFeedbackList(data.map((f: FeedbackItem) => ({ ...f, user_name: userMap.get(f.user_id) ?? '不明' })))
-    }
-    setLoadingFeedback(false)
-  }
-
-  const toggleFeedbackList = () => {
-    if (!showFeedbackList) {
-      fetchFeedbackList()
-    }
-    setShowFeedbackList(!showFeedbackList)
-  }
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr)
-    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
   }
 
   return (
@@ -307,48 +255,12 @@ export function ProfilePage() {
         </Button>
       </Card>
 
-      {/* 開発者専用：フィードバック一覧 */}
-      {isDeveloper && (
-        <Card>
-          <button
-            onClick={toggleFeedbackList}
-            className="flex items-center justify-between w-full"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-navy">📋 受信フィードバック（DEV）</span>
-            </div>
-            {showFeedbackList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-
-          {showFeedbackList && (
-            <div className="mt-3 space-y-2">
-              {loadingFeedback ? (
-                <p className="text-sm text-text-secondary text-center py-4">読み込み中...</p>
-              ) : feedbackList.length === 0 ? (
-                <p className="text-sm text-text-secondary text-center py-4">まだフィードバックはありません</p>
-              ) : (
-                feedbackList.map((fb) => (
-                  <div key={fb.id} className={`p-3 rounded-lg border ${
-                    fb.type === 'bug' ? 'border-red-200 bg-red-50' : 'border-teal-200 bg-teal-50'
-                  }`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          fb.type === 'bug' ? 'bg-red-500 text-white' : 'bg-teal text-white'
-                        }`}>
-                          {fb.type === 'bug' ? '🐛 バグ' : '💡 要望'}
-                        </span>
-                        <span className="text-xs text-text-secondary">{fb.user_name}</span>
-                      </div>
-                      <span className="text-[10px] text-text-secondary">{formatDate(fb.created_at)}</span>
-                    </div>
-                    <p className="text-sm text-text-primary whitespace-pre-wrap">{fb.content}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </Card>
+      {/* 管理者専用：管理ダッシュボードリンク */}
+      {isAdmin && (
+        <Button variant="ghost" onClick={() => navigate('/admin')} className="w-full">
+          <Shield className="w-4 h-4 mr-2" />
+          管理ダッシュボード
+        </Button>
       )}
 
       <Button variant="danger" onClick={handleSignOut} className="w-full">
