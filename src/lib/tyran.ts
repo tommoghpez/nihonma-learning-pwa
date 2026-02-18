@@ -5,6 +5,7 @@ export interface TyranState {
   stage: TyranStage
   mood: TyranMood
   streakDays: number
+  totalLearnedDays: number // 現生涯の累計学習日数（死亡でリセット）
   longestStreak: number
   lastLearnedAt: string | null
   daysSinceLastLearned: number
@@ -14,14 +15,14 @@ export interface TyranState {
 export type TyranStage = 'egg' | 'baby' | 'child' | 'teen' | 'adult' | 'king'
 export type TyranMood = 'ecstatic' | 'happy' | 'normal' | 'worried' | 'sad' | 'dying'
 
-// 成長ステージの定義
-export const TYRAN_STAGES: Record<TyranStage, { minStreak: number; name: string; description: string }> = {
-  egg: { minStreak: 0, name: 'たまご', description: '学習を始めよう！' },
-  baby: { minStreak: 1, name: 'ベビーティラン', description: '生まれたて！' },
-  child: { minStreak: 3, name: 'こどもティラン', description: '元気いっぱい！' },
-  teen: { minStreak: 7, name: '少年ティラン', description: 'すくすく成長中！' },
-  adult: { minStreak: 14, name: 'おとなティラン', description: '立派に成長！' },
-  king: { minStreak: 30, name: 'キングティラン', description: '最強の王者！' },
+// 成長ステージの定義（累計学習日数ベース、死亡でリセット）
+export const TYRAN_STAGES: Record<TyranStage, { minDays: number; name: string; description: string }> = {
+  egg: { minDays: 0, name: 'たまご', description: '学習を始めよう！' },
+  baby: { minDays: 1, name: 'ベビーティラン', description: '生まれたて！' },
+  child: { minDays: 3, name: 'こどもティラン', description: '元気いっぱい！' },
+  teen: { minDays: 7, name: '少年ティラン', description: 'すくすく成長中！' },
+  adult: { minDays: 14, name: 'おとなティラン', description: '立派に成長！' },
+  king: { minDays: 30, name: 'キングティラン', description: '最強の王者！' },
 }
 
 // 機嫌の定義（最終学習からの経過日数）- 3日=worried(心配)、4日=sad(悲しい)
@@ -34,13 +35,13 @@ export const TYRAN_MOODS: Record<TyranMood, { maxDays: number; message: string }
   dying: { maxDays: 5, message: '...もうダメかも...' },
 }
 
-// ステージを計算
-export function calculateStage(streakDays: number): TyranStage {
-  if (streakDays >= 30) return 'king'
-  if (streakDays >= 14) return 'adult'
-  if (streakDays >= 7) return 'teen'
-  if (streakDays >= 3) return 'child'
-  if (streakDays >= 1) return 'baby'
+// ステージを計算（累計学習日数ベース）
+export function calculateStage(totalLearnedDays: number): TyranStage {
+  if (totalLearnedDays >= 30) return 'king'
+  if (totalLearnedDays >= 14) return 'adult'
+  if (totalLearnedDays >= 7) return 'teen'
+  if (totalLearnedDays >= 3) return 'child'
+  if (totalLearnedDays >= 1) return 'baby'
   return 'egg'
 }
 
@@ -67,6 +68,7 @@ export function calculateTyranState(
       stage: 'egg',
       mood: 'normal',
       streakDays: 0,
+      totalLearnedDays: 0,
       longestStreak: 0,
       lastLearnedAt: null,
       daysSinceLastLearned: 999,
@@ -103,6 +105,21 @@ export function calculateTyranState(
     streakDays = 0
   }
 
+  // 現生涯の累計学習日数を算出（最後の5日以上の空白=死亡境界以降のみカウント）
+  let lastDeathIndex = -1
+  for (let i = 0; i < uniqueDates.length - 1; i++) {
+    const d1 = new Date(uniqueDates[i])
+    const d2 = new Date(uniqueDates[i + 1])
+    const gapDays = Math.floor((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24))
+    if (gapDays >= 5) {
+      lastDeathIndex = i
+    }
+  }
+  const currentLifeDates = lastDeathIndex >= 0
+    ? uniqueDates.slice(lastDeathIndex + 1)
+    : uniqueDates
+  const totalLearnedDays = isAlive ? currentLifeDates.length : 0
+
   let longestStreak = 0
   let currentStreak = 0
   let prevDate: Date | null = null
@@ -126,13 +143,14 @@ export function calculateTyranState(
   }
   longestStreak = Math.max(longestStreak, currentStreak)
 
-  const stage = isAlive ? calculateStage(streakDays) : 'egg'
+  const stage = isAlive ? calculateStage(totalLearnedDays) : 'egg'
   const mood = isAlive ? calculateMood(daysSinceLastLearned) : 'normal'
 
   return {
     stage,
     mood,
     streakDays,
+    totalLearnedDays,
     longestStreak,
     lastLearnedAt,
     daysSinceLastLearned,
@@ -597,13 +615,13 @@ export function getTyranMessage(state: TyranState): string {
   const stageInfo = TYRAN_STAGES[state.stage]
   const moodInfo = TYRAN_MOODS[state.mood]
 
-  if (state.streakDays === 0) {
+  if (state.totalLearnedDays === 0) {
     return '今日から学習を始めて、ティランを育てよう！'
   }
 
   if (state.mood === 'ecstatic') {
-    return `${state.streakDays}日連続学習中！${stageInfo.name}は大喜び！🎉`
+    return `${state.totalLearnedDays}日学習達成！${stageInfo.name}は大喜び！🎉`
   }
 
-  return `${moodInfo.message}（${state.streakDays}日連続）`
+  return `${moodInfo.message}（累計${state.totalLearnedDays}日）`
 }

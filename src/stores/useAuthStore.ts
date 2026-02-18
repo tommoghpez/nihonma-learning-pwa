@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
+import { useProgressStore } from '@/stores/useProgressStore'
 import type { User } from '@/types'
 import type { Session } from '@supabase/supabase-js'
 
@@ -31,8 +32,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ session })
         await get().fetchProfile(session.user.id)
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('[Auth] セッション取得に失敗:', err)
     } finally {
       set({ isLoading: false })
     }
@@ -42,6 +43,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (session?.user) {
         await get().fetchProfile(session.user.id)
       } else {
+        useProgressStore.getState().clearProgress()
         set({ user: null, isAdmin: false })
       }
     })
@@ -92,6 +94,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut()
+    useProgressStore.getState().clearProgress()
     set({ user: null, session: null, isAdmin: false, isNewUser: false })
   },
 

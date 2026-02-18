@@ -8,6 +8,7 @@ import type { WatchProgress } from '@/types'
 interface ProgressState {
   progressMap: Record<string, WatchProgress>
   isLoading: boolean
+  clearProgress: () => void
   fetchUserProgress: (userId: string) => Promise<void>
   saveProgress: (
     userId: string,
@@ -24,6 +25,8 @@ interface ProgressState {
 export const useProgressStore = create<ProgressState>((set, get) => ({
   progressMap: {},
   isLoading: false,
+
+  clearProgress: () => set({ progressMap: {}, isLoading: false }),
 
   fetchUserProgress: async (userId: string) => {
     set({ isLoading: true })

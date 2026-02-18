@@ -162,7 +162,7 @@ export function TyranPreviewPage() {
                 />
               </div>
               <p className="text-xs font-bold text-text-primary">{TYRAN_STAGES[stage].name}</p>
-              <p className="text-[10px] text-text-secondary">{TYRAN_STAGES[stage].minStreak}日〜</p>
+              <p className="text-[10px] text-text-secondary">{TYRAN_STAGES[stage].minDays}日〜</p>
             </div>
           ))}
         </div>

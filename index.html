@@ -15,8 +15,10 @@
     <script>
       // Safari PWA キャッシュ強制更新（バージョン変更時にSWを再登録）
       // このバージョンを変更するとSafariでも古いキャッシュがクリアされる
+      // ⚠️ 注意: localStorageはクリアしない（Supabase認証トークンが保存されているため）
+      //   キー: sb-rrwvpxckbuiufmxiopxi-auth-token
       (function() {
-        var APP_VERSION = '2.4.0';
+        var APP_VERSION = '2.5.0';
         var stored = localStorage.getItem('app-version');
         if (stored !== APP_VERSION) {
           localStorage.setItem('app-version', APP_VERSION);

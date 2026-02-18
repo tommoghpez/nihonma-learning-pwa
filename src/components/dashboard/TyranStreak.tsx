@@ -367,7 +367,7 @@ export function TyranStreak() {
               30日間の学習記録
             </span>
             <span className="text-[11px] font-medium text-text-primary">
-              {tyranState.streakDays}/30日
+              {tyranState.totalLearnedDays}/30日
             </span>
           </div>
 
@@ -417,7 +417,7 @@ export function TyranStreak() {
           {tyranState.isAlive && (
             <div className="mt-1 flex items-center gap-[2px]">
               {MILESTONES.map((m, i) => {
-                const reached = tyranState.streakDays >= m.days
+                const reached = tyranState.totalLearnedDays >= m.days
                 const prev = i > 0 ? MILESTONES[i - 1].days : 0
                 const segmentWidth = ((m.days - prev) / 30) * 100
                 return (
@@ -457,7 +457,7 @@ function getNextStageInfo(state: TyranState): string {
   }
 
   const nextStage = stageOrder[currentIndex + 1]
-  const remaining = nextStage.days - state.streakDays
+  const remaining = nextStage.days - state.totalLearnedDays
 
   return `あと${remaining}日`
 }
@@ -476,7 +476,7 @@ function getProgressPercent(state: TyranState): number {
   const current = stageThresholds.find((s) => s.stage === state.stage)
   if (!current || current.stage === 'king') return 100
 
-  const progress = state.streakDays - current.min
+  const progress = state.totalLearnedDays - current.min
   const range = current.max - current.min
 
   return Math.min(100, Math.round((progress / range) * 100))
