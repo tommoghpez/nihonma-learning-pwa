@@ -11,6 +11,8 @@ import { Card } from '@/components/common/Card'
 import { AvatarPicker } from '@/components/profile/AvatarPicker'
 import { BadgeList } from '@/components/profile/BadgeList'
 import { supabase } from '@/lib/supabase'
+import { getTitle } from '@/lib/titles'
+import { TitleBadge } from '@/components/common/TitleBadge'
 import {
   parseAvatarString,
   avatarConfigToString,
@@ -141,9 +143,12 @@ export function ProfilePage() {
           <div>
             <p className="font-bold text-text-primary">{user?.display_name}</p>
             <p className="text-sm text-text-secondary">{user?.email}</p>
-            <p className="text-xs text-text-secondary mt-1">
-              {user?.role === 'admin' ? '管理者' : 'メンバー'}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <TitleBadge title={getTitle(stats.completed).current} size="md" />
+              <span className="text-xs text-text-secondary">
+                {user?.role === 'admin' ? '管理者' : 'メンバー'}
+              </span>
+            </div>
           </div>
         </div>
 

@@ -4,6 +4,8 @@ import { Users, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { parseAvatarString, getAvatarDataUrl } from '@/lib/avatars'
+import { getTitle } from '@/lib/titles'
+import { TitleBadge } from '@/components/common/TitleBadge'
 
 const REACTION_EMOJIS = ['👍', '🔥', '👏', '💪'] as const
 
@@ -22,6 +24,7 @@ interface ActivityItem {
   video_title: string
   completed: boolean
   updated_at: string
+  completed_count: number
   reactions: ReactionCount[]
 }
 
@@ -53,6 +56,16 @@ export function TeamActivity() {
       if (!data || data.length === 0) {
         setActivities([])
         return
+      }
+
+      // ユーザーごとの完了数を取得（称号算出用）
+      const { data: allCompleted } = await supabase
+        .from('watch_progress')
+        .select('user_id')
+        .eq('completed', true)
+      const completedCountMap = new Map<string, number>()
+      for (const row of allCompleted ?? []) {
+        completedCountMap.set(row.user_id, (completedCountMap.get(row.user_id) ?? 0) + 1)
       }
 
       // リアクションを一括取得
@@ -91,6 +104,7 @@ export function TeamActivity() {
           video_title: d.videos?.title ?? '動画',
           completed: d.completed,
           updated_at: d.updated_at,
+          completed_count: completedCountMap.get(d.user_id) ?? 0,
           reactions: reactionCounts,
         }
       })
@@ -194,6 +208,7 @@ export function TeamActivity() {
           const avatarUrl = getAvatarDataUrl(avatarConfig.character, avatarConfig.colorName)
           const isMe = item.user_id === currentUser?.id
           const hasAnyReaction = item.reactions.some((r) => r.count > 0)
+          const titleInfo = getTitle(item.completed_count)
 
           return (
             <div
@@ -216,6 +231,7 @@ export function TeamActivity() {
                   <p className="text-xs text-text-primary leading-relaxed">
                     <span className="font-bold">{item.display_name}</span>
                     {isMe && <span className="text-teal text-[10px] ml-1">(あなた)</span>}
+                    {' '}<TitleBadge title={titleInfo.current} />
                     <span className="text-text-secondary"> が </span>
                     <span className="font-medium">{item.video_title}</span>
                     <span className="text-text-secondary"> を視聴完了</span>

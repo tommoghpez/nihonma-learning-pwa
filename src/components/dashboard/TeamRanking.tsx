@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Card } from '@/components/common/Card'
 import { parseAvatarString, getAvatarDataUrl } from '@/lib/avatars'
+import { getTitle } from '@/lib/titles'
+import { TitleBadge } from '@/components/common/TitleBadge'
 
 interface RankingItem {
   user_id: string
@@ -102,10 +104,15 @@ export function TeamRanking() {
                     alt=""
                     className="w-8 h-8 rounded-full"
                   />
-                  <span className={`text-sm ${isMe ? 'font-bold text-navy' : 'text-text-primary'}`}>
-                    {item.display_name}
-                    {isMe && <span className="ml-1 text-teal text-xs">（あなた）</span>}
-                  </span>
+                  <div>
+                    <span className={`text-sm ${isMe ? 'font-bold text-navy' : 'text-text-primary'}`}>
+                      {item.display_name}
+                      {isMe && <span className="ml-1 text-teal text-xs">（あなた）</span>}
+                    </span>
+                    <div className="mt-0.5">
+                      <TitleBadge title={getTitle(item.completed_count).current} />
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-bold text-navy">{item.completed_count}</span>
@@ -130,10 +137,15 @@ export function TeamRanking() {
                     alt=""
                     className="w-8 h-8 rounded-full"
                   />
-                  <span className="text-sm font-bold text-navy">
-                    {currentUser.display_name}
-                    <span className="ml-1 text-teal text-xs">（あなた）</span>
-                  </span>
+                  <div>
+                    <span className="text-sm font-bold text-navy">
+                      {currentUser.display_name}
+                      <span className="ml-1 text-teal text-xs">（あなた）</span>
+                    </span>
+                    <div className="mt-0.5">
+                      <TitleBadge title={getTitle(ranking[myRank - 1]?.completed_count ?? 0).current} />
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-bold text-navy">

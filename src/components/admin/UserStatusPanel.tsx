@@ -4,6 +4,8 @@ import { Card } from '@/components/common/Card'
 import { supabase } from '@/lib/supabase'
 import { calculateTyranState, TYRAN_STAGES, type TyranState, type TyranMood } from '@/lib/tyran'
 import { getAvatarDataUrl, parseAvatarString } from '@/lib/avatars'
+import { getTitle } from '@/lib/titles'
+import { TitleBadge } from '@/components/common/TitleBadge'
 import type { User } from '@/types'
 
 interface WatchProgressRow {
@@ -169,6 +171,7 @@ export function UserStatusPanel({ onSelectUser }: Props) {
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${status.cls}`}>
                         {status.label}
                       </span>
+                      <TitleBadge title={getTitle(completedCount).current} />
                     </div>
 
                     {/* メトリクス行 */}
