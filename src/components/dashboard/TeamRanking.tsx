@@ -56,14 +56,14 @@ export function TeamRanking() {
 
   if (isLoading || ranking.length < 1) return null
 
-  const topThree = ranking.slice(0, 3)
+  const topEight = ranking.slice(0, 8)
   const myRank = ranking.findIndex((r) => r.user_id === currentUser?.id) + 1
 
   const getRankIcon = (index: number) => {
     if (index === 0) return <Crown className="w-5 h-5 text-yellow-500" />
     if (index === 1) return <Medal className="w-5 h-5 text-gray-400" />
     if (index === 2) return <Award className="w-5 h-5 text-amber-600" />
-    return null
+    return <span className="text-sm font-bold text-text-secondary">{index + 1}</span>
   }
 
   const getRankBgColor = (index: number) => {
@@ -81,7 +81,7 @@ export function TeamRanking() {
       </h2>
       <Card className="p-3">
         <div className="space-y-2">
-          {topThree.map((item, index) => {
+          {topEight.map((item, index) => {
             const avatarConfig = parseAvatarString(item.avatar_url)
             const avatarUrl = getAvatarDataUrl(avatarConfig.character, avatarConfig.colorName)
             const isMe = item.user_id === currentUser?.id
@@ -114,7 +114,7 @@ export function TeamRanking() {
               </div>
             )
           })}
-          {myRank > 3 && currentUser && (
+          {myRank > 8 && currentUser && (
             <>
               <div className="text-center text-text-secondary text-xs py-1">・・・</div>
               <div className={`flex items-center justify-between p-3 rounded-lg bg-teal-50 ring-2 ring-teal ring-offset-1`}>
