@@ -13,6 +13,30 @@ import {
 import { DEVELOPER_EMAILS } from '@/lib/constants'
 import { Egg, Eye } from 'lucide-react'
 
+// 時間帯の判定（ローカル時間）
+function getTimeOfDay(): 'morning' | 'afternoon' | 'night' {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) return 'morning'
+  if (hour >= 12 && hour < 17) return 'afternoon'
+  return 'night'
+}
+
+// 時間帯別の背景スタイル（ピクセルアート風）
+const SKY_STYLES = {
+  morning: {
+    background: 'linear-gradient(to bottom, #FB923C 0%, #FDE68A 40%, #BAE6FD 100%)',
+    borderColor: 'border-green-400',
+  },
+  afternoon: {
+    background: 'linear-gradient(to bottom, #0EA5E9 0%, #38BDF8 50%, #E0F2FE 100%)',
+    borderColor: 'border-green-300',
+  },
+  night: {
+    background: 'linear-gradient(to bottom, #0F172A 0%, #1E1B4B 60%, #312E81 100%)',
+    borderColor: 'border-green-900',
+  },
+} as const
+
 const PET_COUNT_KEY = 'nihonma-tyran-pet-count'
 function getPetCount(): number {
   try { return parseInt(localStorage.getItem(PET_COUNT_KEY) ?? '0', 10) } catch { return 0 }
@@ -63,6 +87,13 @@ export function TyranStreak() {
   const [hearts, setHearts] = useState<Array<{ id: number; x: number }>>([])
   const [bubbleMessage, setBubbleMessage] = useState<string | null>(null)
   const [petCount, setPetCount] = useState(getPetCount)
+  const [timeOfDay, setTimeOfDay] = useState(getTimeOfDay)
+
+  // 時間帯を1分ごとに更新
+  useEffect(() => {
+    const interval = setInterval(() => setTimeOfDay(getTimeOfDay()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ティランタップハンドラー
   const handleTyranTap = useCallback(() => {
@@ -239,30 +270,74 @@ export function TyranStreak() {
       {/* メインコンテンツ */}
       <div className="p-3">
         {/* ティランの歩行エリア（拡大） */}
-        <div className={`relative mb-2 bg-gradient-to-b from-sky-200 via-sky-100 to-green-100 rounded-lg overflow-hidden border-b-4 border-green-300 ${
-          tyranState.stage === 'king' ? 'h-28' : tyranState.stage === 'adult' ? 'h-24' : 'h-20'
-        }`}>
+        <div
+          className={`relative mb-2 rounded-lg overflow-hidden border-b-4 ${SKY_STYLES[timeOfDay].borderColor} ${
+            tyranState.stage === 'king' ? 'h-28' : tyranState.stage === 'adult' ? 'h-24' : 'h-20'
+          }`}
+          style={{ background: SKY_STYLES[timeOfDay].background }}
+        >
+          {/* 夜空のピクセルアート星 */}
+          {timeOfDay === 'night' && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 60" preserveAspectRatio="none">
+              <rect x="8"  y="5"  width="1.5" height="1.5" fill="white" opacity="0.9"/>
+              <rect x="20" y="12" width="1"   height="1"   fill="white" opacity="0.7"/>
+              <rect x="35" y="6"  width="2"   height="2"   fill="white" opacity="0.85"/>
+              <rect x="50" y="4"  width="1"   height="1"   fill="white" opacity="0.6"/>
+              <rect x="63" y="9"  width="1.5" height="1.5" fill="white" opacity="0.9"/>
+              <rect x="78" y="5"  width="1"   height="1"   fill="white" opacity="0.7"/>
+              <rect x="14" y="20" width="1"   height="1"   fill="white" opacity="0.5"/>
+              <rect x="44" y="17" width="1.5" height="1.5" fill="white" opacity="0.75"/>
+              <rect x="72" y="22" width="1"   height="1"   fill="white" opacity="0.6"/>
+              <rect x="28" y="25" width="1"   height="1"   fill="white" opacity="0.5"/>
+              <rect x="88" y="14" width="1"   height="1"   fill="white" opacity="0.8"/>
+              <rect x="56" y="28" width="1"   height="1"   fill="white" opacity="0.4"/>
+              <rect x="92" y="8"  width="1"   height="1"   fill="white" opacity="0.65"/>
+              {/* 十字型の明るい星 */}
+              <rect x="40" y="9"  width="1"   height="3"   fill="white" opacity="0.95"/>
+              <rect x="39" y="10" width="3"   height="1"   fill="white" opacity="0.95"/>
+            </svg>
+          )}
+
+          {/* 朝焼けの光彩（morning） */}
+          {timeOfDay === 'morning' && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 60" preserveAspectRatio="none">
+              <radialGradient id="sunrise-glow" cx="85%" cy="20%" r="30%">
+                <stop offset="0%" stopColor="#FDE68A" stopOpacity="0.5"/>
+                <stop offset="100%" stopColor="#FDE68A" stopOpacity="0"/>
+              </radialGradient>
+              <rect x="0" y="0" width="100" height="60" fill="url(#sunrise-glow)"/>
+            </svg>
+          )}
+
           {/* 地面の草（多層） */}
-          <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-green-500 via-green-400 to-green-300" />
+          <div className={`absolute bottom-0 left-0 right-0 h-3 ${
+            timeOfDay === 'night'
+              ? 'bg-gradient-to-t from-green-900 via-green-800 to-green-700'
+              : 'bg-gradient-to-t from-green-500 via-green-400 to-green-300'
+          }`} />
           {/* 草のディテール */}
           <svg className="absolute bottom-1 left-0 right-0 h-3 w-full opacity-40" viewBox="0 0 200 10" preserveAspectRatio="none">
-            <path d="M0,10 L5,4 L10,10 L15,5 L20,10 L25,3 L30,10 L35,6 L40,10 L45,4 L50,10 L55,5 L60,10 L65,3 L70,10 L75,6 L80,10 L85,4 L90,10 L95,5 L100,10 L105,3 L110,10 L115,6 L120,10 L125,4 L130,10 L135,5 L140,10 L145,3 L150,10 L155,6 L160,10 L165,4 L170,10 L175,5 L180,10 L185,3 L190,10 L195,6 L200,10" fill="#2E7D32"/>
+            <path d="M0,10 L5,4 L10,10 L15,5 L20,10 L25,3 L30,10 L35,6 L40,10 L45,4 L50,10 L55,5 L60,10 L65,3 L70,10 L75,6 L80,10 L85,4 L90,10 L95,5 L100,10 L105,3 L110,10 L115,6 L120,10 L125,4 L130,10 L135,5 L140,10 L145,3 L150,10 L155,6 L160,10 L165,4 L170,10 L175,5 L180,10 L185,3 L190,10 L195,6 L200,10" fill={timeOfDay === 'night' ? '#14532D' : '#2E7D32'}/>
           </svg>
 
-          {/* 太陽 */}
-          <div className="absolute top-1 right-3 text-xl" style={{ animation: 'spin 20s linear infinite' }}>☀️</div>
+          {/* 太陽 / 月 */}
+          {timeOfDay === 'night' ? (
+            <div className="absolute top-1 right-3 text-xl">🌙</div>
+          ) : (
+            <div className="absolute top-1 right-3 text-xl" style={{ animation: 'spin 20s linear infinite' }}>☀️</div>
+          )}
 
-          {/* 雲（ドリフトアニメーション） */}
-          {tyranState.isAlive && (
+          {/* 雲（朝・昼のみ） */}
+          {tyranState.isAlive && timeOfDay !== 'night' && (
             <>
               <div className="absolute top-2 text-lg opacity-30" style={{ animation: 'drift 25s linear infinite' }}>☁️</div>
               <div className="absolute top-4 text-sm opacity-20" style={{ animation: 'drift 18s linear infinite', animationDelay: '-8s' }}>☁️</div>
             </>
           )}
 
-          {/* 木（左端・右端） */}
-          <div className="absolute bottom-2 left-2 text-lg opacity-50">🌳</div>
-          <div className="absolute bottom-2 right-3 text-base opacity-40">🌲</div>
+          {/* 木（左端・右端）夜は暗め */}
+          <div className={`absolute bottom-2 left-2 text-lg ${timeOfDay === 'night' ? 'opacity-30' : 'opacity-50'}`}>🌳</div>
+          <div className={`absolute bottom-2 right-3 text-base ${timeOfDay === 'night' ? 'opacity-25' : 'opacity-40'}`}>🌲</div>
 
           {/* ティラン（タップ可能） */}
           <div
