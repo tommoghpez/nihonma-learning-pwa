@@ -79,7 +79,7 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
         })
         if (error) throw error
       } else {
-        await enqueueSync('summaries', 'upsert', summaryData)
+        await enqueueSync('summaries', 'upsert', summaryData, 'user_id,video_id')
       }
 
       await db.summaries.put({

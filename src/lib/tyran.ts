@@ -35,6 +35,24 @@ export const TYRAN_MOODS: Record<TyranMood, { maxDays: number; message: string }
   dying: { maxDays: 5, message: '...もうダメかも...' },
 }
 
+// 日付をローカルタイム（端末＝JST）の YYYY-MM-DD に変換する。
+// UTC基準（toISOString）だと、朝/夜に観た記録が前日扱いになり「観たのに記録されない/日付が入れ替わる」原因になる。
+export function toLocalDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// YYYY-MM-DD キー同士の日数差（ローカル基準）
+function daysBetweenKeys(aKey: string, bKey: string): number {
+  const [ay, am, ad] = aKey.split('-').map(Number)
+  const [by, bm, bd] = bKey.split('-').map(Number)
+  const a = new Date(ay, am - 1, ad).getTime()
+  const b = new Date(by, bm - 1, bd).getTime()
+  return Math.round((b - a) / (1000 * 60 * 60 * 24))
+}
+
 // ステージを計算（累計学習日数ベース）
 export function calculateStage(totalLearnedDays: number): TyranStage {
   if (totalLearnedDays >= 30) return 'king'
@@ -60,8 +78,8 @@ export function calculateTyranState(
   progressDates: string[],
   today: Date = new Date()
 ): TyranState {
-  const todayStr = today.toISOString().split('T')[0]
-  const uniqueDates = [...new Set(progressDates.map(d => d.split('T')[0]))].sort()
+  const todayStr = toLocalDateKey(today)
+  const uniqueDates = [...new Set(progressDates.map((d) => toLocalDateKey(new Date(d))))].sort()
 
   if (uniqueDates.length === 0) {
     return {
@@ -77,10 +95,7 @@ export function calculateTyranState(
   }
 
   const lastLearnedAt = uniqueDates[uniqueDates.length - 1]
-  const lastLearnedDate = new Date(lastLearnedAt)
-  const daysSinceLastLearned = Math.floor(
-    (today.getTime() - lastLearnedDate.getTime()) / (1000 * 60 * 60 * 24)
-  )
+  const daysSinceLastLearned = daysBetweenKeys(lastLearnedAt, todayStr)
 
   const isAlive = daysSinceLastLearned < 5
 
@@ -92,7 +107,7 @@ export function calculateTyranState(
   }
 
   while (true) {
-    const checkStr = checkDate.toISOString().split('T')[0]
+    const checkStr = toLocalDateKey(checkDate)
     if (uniqueDates.includes(checkStr)) {
       streakDays++
       checkDate.setDate(checkDate.getDate() - 1)
@@ -108,9 +123,7 @@ export function calculateTyranState(
   // 現生涯の累計学習日数を算出（最後の5日以上の空白=死亡境界以降のみカウント）
   let lastDeathIndex = -1
   for (let i = 0; i < uniqueDates.length - 1; i++) {
-    const d1 = new Date(uniqueDates[i])
-    const d2 = new Date(uniqueDates[i + 1])
-    const gapDays = Math.floor((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24))
+    const gapDays = daysBetweenKeys(uniqueDates[i], uniqueDates[i + 1])
     if (gapDays >= 5) {
       lastDeathIndex = i
     }
@@ -122,14 +135,11 @@ export function calculateTyranState(
 
   let longestStreak = 0
   let currentStreak = 0
-  let prevDate: Date | null = null
+  let prevKey: string | null = null
 
   for (const dateStr of uniqueDates) {
-    const date = new Date(dateStr)
-    if (prevDate) {
-      const diffDays = Math.floor(
-        (date.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
-      )
+    if (prevKey) {
+      const diffDays = daysBetweenKeys(prevKey, dateStr)
       if (diffDays === 1) {
         currentStreak++
       } else {
@@ -139,7 +149,7 @@ export function calculateTyranState(
     } else {
       currentStreak = 1
     }
-    prevDate = date
+    prevKey = dateStr
   }
   longestStreak = Math.max(longestStreak, currentStreak)
 

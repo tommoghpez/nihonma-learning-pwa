@@ -7,6 +7,10 @@ export interface PendingSyncItem {
   action: 'upsert' | 'insert'
   data: Record<string, unknown>
   timestamp: number
+  /** upsert時の衝突解決キー（例: 'user_id,video_id'）。未指定だと主キー基準になる */
+  onConflict?: string
+  /** 同期試行回数。上限を超えたら破棄してキューの詰まりを防ぐ */
+  attempts?: number
 }
 
 export class AppDatabase extends Dexie {

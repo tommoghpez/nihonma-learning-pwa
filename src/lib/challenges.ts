@@ -2,6 +2,7 @@
 // DB不要 — progressMap + summaries数から算出
 
 import type { WatchProgress } from '@/types'
+import { toLocalDateKey } from '@/lib/tyran'
 
 export interface Challenge {
   id: string
@@ -31,7 +32,7 @@ function getThisWeekDateStrings(): Set<string> {
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setDate(d.getDate() + i)
-    dates.add(d.toISOString().split('T')[0])
+    dates.add(toLocalDateKey(d))
   }
   return dates
 }
@@ -45,25 +46,25 @@ export function calculateWeeklyChallenges(
   // 今週完了した動画数
   const completedThisWeek = Object.values(progressMap).filter((p) => {
     if (!p.completed || !p.completed_at) return false
-    const dateStr = p.completed_at.split('T')[0]
-    return weekDates.has(dateStr)
+    return weekDates.has(toLocalDateKey(new Date(p.completed_at)))
   }).length
 
-  // 今週視聴した動画数（少しでも見た）
+  // 今週視聴した動画数（少しでも見た）。初回視聴日(created_at)で判定。
   const watchedThisWeek = Object.values(progressMap).filter((p) => {
     if (p.watched_seconds <= 0) return false
-    const dateStr = p.updated_at.split('T')[0]
-    return weekDates.has(dateStr)
+    return weekDates.has(toLocalDateKey(new Date(p.created_at)))
   }).length
 
-  // 今週学習した日数
+  // 今週学習した日数。変化しない created_at / completed_at で集計（updated_at は使わない）。
   const learnedDaysThisWeek = new Set<string>()
   for (const p of Object.values(progressMap)) {
     if (p.watched_seconds > 0) {
-      const created = p.created_at.split('T')[0]
-      const updated = p.updated_at.split('T')[0]
+      const created = toLocalDateKey(new Date(p.created_at))
       if (weekDates.has(created)) learnedDaysThisWeek.add(created)
-      if (weekDates.has(updated)) learnedDaysThisWeek.add(updated)
+      if (p.completed_at) {
+        const done = toLocalDateKey(new Date(p.completed_at))
+        if (weekDates.has(done)) learnedDaysThisWeek.add(done)
+      }
     }
   }
 

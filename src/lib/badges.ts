@@ -2,6 +2,7 @@
 // DB不要 — progressMap + summaryCount + streakDays から判定
 
 import type { WatchProgress } from '@/types'
+import { toLocalDateKey } from '@/lib/tyran'
 
 export interface Badge {
   id: string
@@ -29,7 +30,7 @@ export function calculateBadges(
   const completionsByDate = new Map<string, number>()
   for (const p of Object.values(progressMap)) {
     if (p.completed && p.completed_at) {
-      const dateStr = p.completed_at.split('T')[0]
+      const dateStr = toLocalDateKey(new Date(p.completed_at))
       completionsByDate.set(dateStr, (completionsByDate.get(dateStr) ?? 0) + 1)
     }
   }

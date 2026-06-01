@@ -7,6 +7,7 @@ import {
   calculateTyranState,
   getTyranSVG,
   getTyranMessage,
+  toLocalDateKey,
   TYRAN_STAGES,
   type TyranState,
 } from '@/lib/tyran'
@@ -55,13 +56,18 @@ function getPetMessage(count: number): string {
   return 'わーい！🎵'
 }
 
-// 全学習日付を取得するヘルパー（created_at と updated_at の両方を含む）
-function getAllLearnedDates(progressMap: Record<string, { watched_seconds: number; created_at: string; updated_at: string }>): Set<string> {
+// 全学習日付を取得するヘルパー。
+// 学習日は「初回視聴日(created_at)」と「完了日(completed_at)」というその後変化しない値で集計する。
+// 以前は updated_at を使っていたため、古い動画を触るたび過去のセルが今日へ移動し
+// 「昨日の記録が消える/日付が入れ替わる」原因になっていた。日付は端末ローカル(JST)基準。
+function getAllLearnedDates(
+  progressMap: Record<string, { watched_seconds: number; created_at: string; completed_at: string | null }>
+): Set<string> {
   const dates = new Set<string>()
   for (const p of Object.values(progressMap)) {
     if (p.watched_seconds > 0) {
-      dates.add(p.created_at.split('T')[0])
-      dates.add(p.updated_at.split('T')[0])
+      dates.add(toLocalDateKey(new Date(p.created_at)))
+      if (p.completed_at) dates.add(toLocalDateKey(new Date(p.completed_at)))
     }
   }
   return dates
@@ -128,7 +134,7 @@ export function TyranStreak() {
     for (const p of Object.values(progressMap)) {
       if (p.watched_seconds > 0) {
         learnedDates.push(p.created_at)
-        learnedDates.push(p.updated_at)
+        if (p.completed_at) learnedDates.push(p.completed_at)
       }
     }
     return calculateTyranState(learnedDates)
@@ -201,8 +207,8 @@ export function TyranStreak() {
     const calendarEnd = new Date(today)
     calendarEnd.setDate(calendarEnd.getDate() + sundayOffset)
 
-    const todayStr = today.toISOString().split('T')[0]
-    const startStr = startDate.toISOString().split('T')[0]
+    const todayStr = toLocalDateKey(today)
+    const startStr = toLocalDateKey(startDate)
 
     // 週ごとのグリッドを生成
     const weeks: Array<Array<{
@@ -218,7 +224,7 @@ export function TyranStreak() {
     while (cursor <= calendarEnd) {
       const week: typeof weeks[0] = []
       for (let d = 0; d < 7; d++) {
-        const dateStr = cursor.toISOString().split('T')[0]
+        const dateStr = toLocalDateKey(cursor)
         const isInRange = dateStr >= startStr && dateStr <= todayStr
         const isFuture = dateStr > todayStr
 

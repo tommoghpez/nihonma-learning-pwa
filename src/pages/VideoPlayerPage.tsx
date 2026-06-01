@@ -21,6 +21,8 @@ export function VideoPlayerPage() {
   const [showDescription, setShowDescription] = useState(false)
   const [hasPlayed, setHasPlayed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [playerReady, setPlayerReady] = useState(false)
+  const hasSeekedRef = useRef(false)
   const {
     isCompleted,
     lastPosition,
@@ -34,6 +36,21 @@ export function VideoPlayerPage() {
     if (id) fetchVideoById(id)
   }, [id])
 
+  // 動画が切り替わったら seek 状態をリセット
+  useEffect(() => {
+    hasSeekedRef.current = false
+    setPlayerReady(false)
+  }, [id])
+
+  // プレイヤー準備完了「かつ」進捗読込済みになった時点で続きから再生位置へシーク。
+  // onReady と進捗取得は非同期で順序が不定なため、両方揃ってから一度だけ実行する。
+  useEffect(() => {
+    if (playerReady && !hasSeekedRef.current && lastPosition > 0 && playerRef.current) {
+      playerRef.current.seekTo(lastPosition, 'seconds')
+      hasSeekedRef.current = true
+    }
+  }, [playerReady, lastPosition])
+
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', handler)
@@ -41,10 +58,8 @@ export function VideoPlayerPage() {
   }, [])
 
   const handleReady = useCallback(() => {
-    if (lastPosition > 0 && playerRef.current) {
-      playerRef.current.seekTo(lastPosition, 'seconds')
-    }
-  }, [lastPosition])
+    setPlayerReady(true)
+  }, [])
 
   const handlePlay = useCallback(() => {
     startTracking()

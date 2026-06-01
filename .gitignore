@@ -32,3 +32,6 @@ dist-ssr
 dev-dist
 sw.js
 workbox-*.js
+
+# Backups (個人データ — コミット禁止)
+backups/

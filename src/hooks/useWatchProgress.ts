@@ -7,12 +7,18 @@ import type ReactPlayer from 'react-player'
 
 export function useWatchProgress(videoId: string, playerRef: React.RefObject<ReactPlayer | null>) {
   const user = useAuthStore((s) => s.user)
-  const { saveProgress, progressMap, toggleCompleted } = useProgressStore()
+  const { saveProgress, progressMap, toggleCompleted, fetchVideoProgress } = useProgressStore()
   const addToast = useUIStore((s) => s.addToast)
   const hasNotifiedCompletion = useRef(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const progress = progressMap[videoId]
+
+  // この動画の進捗を必ず取得しておく。これが無いと progressMap 未読込時に
+  // 「視聴済みなのに視聴中」「続きから再生不可」「新規 id 生成による保存失敗」が起きる。
+  useEffect(() => {
+    if (user && videoId) fetchVideoProgress(user.id, videoId)
+  }, [user, videoId, fetchVideoProgress])
 
   const startTracking = useCallback(() => {
     if (intervalRef.current) return
