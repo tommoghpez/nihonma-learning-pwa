@@ -7,10 +7,11 @@ interface VideoPlayerProps {
   onReady?: () => void
   onPlay?: () => void
   onPause?: () => void
+  onError?: () => void
 }
 
 export const VideoPlayer = forwardRef<ReactPlayer, VideoPlayerProps>(
-  ({ videoId, playbackRate, onReady, onPlay, onPause }, ref) => {
+  ({ videoId, playbackRate, onReady, onPlay, onPause, onError }, ref) => {
     return (
       <div className="relative aspect-video bg-black rounded-card overflow-hidden">
         <ReactPlayer
@@ -23,6 +24,7 @@ export const VideoPlayer = forwardRef<ReactPlayer, VideoPlayerProps>(
           onReady={onReady}
           onPlay={onPlay}
           onPause={onPause}
+          onError={onError}
           config={{
             youtube: {
               playerVars: {

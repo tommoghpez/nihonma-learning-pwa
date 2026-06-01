@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { PenLine, Check, Cloud, CloudOff } from 'lucide-react'
 import { Button } from '@/components/common/Button'
-import { supabase } from '@/lib/supabase'
+import { supabase, withTimeout } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { useUIStore } from '@/stores/useUIStore'
 import { SUMMARY_TEMPLATE } from '@/lib/constants'
 import { db } from '@/lib/db'
 import { enqueueSync } from '@/lib/sync'
@@ -15,7 +14,6 @@ interface SummaryEditorProps {
 
 export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
   const user = useAuthStore((s) => s.user)
-  const addToast = useUIStore((s) => s.addToast)
   const [content, setContent] = useState(SUMMARY_TEMPLATE)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
@@ -23,6 +21,8 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedContentRef = useRef(SUMMARY_TEMPLATE)
+  // 最新の入力内容を常に保持。アンマウント時フラッシュで参照する（クロージャの古い値を防ぐ）。
+  const latestContentRef = useRef(SUMMARY_TEMPLATE)
 
   useEffect(() => {
     async function loadExisting() {
@@ -33,10 +33,11 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
           .select('*')
           .eq('user_id', user.id)
           .eq('video_id', videoId)
-          .single()
+          .maybeSingle()
         if (data?.content) {
           setContent(data.content)
           savedContentRef.current = data.content
+          latestContentRef.current = data.content
           setLastSaved(data.updated_at)
           // 既存ノートがある場合は開いた状態にする
           setIsExpanded(true)
@@ -49,6 +50,7 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
         if (cached?.content) {
           setContent(cached.content)
           savedContentRef.current = cached.content
+          latestContentRef.current = cached.content
           setLastSaved(cached.updated_at)
           setIsExpanded(true)
         }
@@ -57,13 +59,11 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
     loadExisting()
   }, [user, videoId])
 
-  const handleSave = useCallback(async (contentToSave?: string) => {
-    if (!user) return
-    const saveContent = contentToSave ?? content
-    if (saveContent === savedContentRef.current) return // 変更なし
-
-    setSaving(true)
-
+  // 実際の永続化。React の state を触らないのでアンマウント中でも安全に呼べる。
+  // まずローカル(Dexie)へ即保存してから、オンラインなら upsert（タイムアウト付きで
+  // 固まらない）。失敗・タイムアウト時はキューに積むので、メモが消えることはない。
+  const persist = useCallback(async (saveContent: string): Promise<string | null> => {
+    if (!user) return null
     const now = new Date().toISOString()
     const summaryData = {
       user_id: user.id,
@@ -72,36 +72,54 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
       updated_at: now,
     }
 
+    await db.summaries.put({ id: `${user.id}-${videoId}`, ...summaryData, created_at: now })
+
     try {
       if (navigator.onLine) {
-        const { error } = await supabase.from('summaries').upsert(summaryData, {
-          onConflict: 'user_id,video_id',
-        })
+        const { error } = await withTimeout(
+          supabase.from('summaries').upsert(summaryData, { onConflict: 'user_id,video_id' }),
+          10000
+        )
         if (error) throw error
       } else {
         await enqueueSync('summaries', 'upsert', summaryData, 'user_id,video_id')
       }
-
-      await db.summaries.put({
-        id: `${user.id}-${videoId}`,
-        ...summaryData,
-        created_at: now,
-      })
-
-      savedContentRef.current = saveContent
-      setLastSaved(now)
-      setHasUnsaved(false)
-      onSaved?.()
     } catch {
-      addToast('保存に失敗しました', 'error')
+      // オンライン保存に失敗（タイムアウト含む）→ 後で同期。ローカルには保存済み。
+      await enqueueSync('summaries', 'upsert', summaryData, 'user_id,video_id')
+    }
+
+    savedContentRef.current = saveContent
+    return now
+  }, [user, videoId])
+
+  const persistRef = useRef(persist)
+  useEffect(() => {
+    persistRef.current = persist
+  }, [persist])
+
+  const handleSave = useCallback(async (contentToSave?: string) => {
+    if (!user) return
+    const saveContent = contentToSave ?? latestContentRef.current
+    if (saveContent === savedContentRef.current) return // 変更なし
+
+    setSaving(true)
+    try {
+      const now = await persist(saveContent)
+      if (now) {
+        setLastSaved(now)
+        setHasUnsaved(false)
+        onSaved?.()
+      }
     } finally {
       setSaving(false)
     }
-  }, [user, videoId, content, addToast, onSaved])
+  }, [user, persist, onSaved])
 
-  // 自動保存（30秒間隔）
+  // 自動保存（3秒間隔のデバウンス）
   const handleContentChange = useCallback((newContent: string) => {
     setContent(newContent)
+    latestContentRef.current = newContent
     setHasUnsaved(newContent !== savedContentRef.current)
 
     // タイマーリセット
@@ -110,14 +128,18 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
     }
     autoSaveTimerRef.current = setTimeout(() => {
       handleSave(newContent)
-    }, 30000)
+    }, 3000)
   }, [handleSave])
 
-  // コンポーネントアンマウント時に未保存があれば保存
+  // アンマウント時に未保存があれば確実にフラッシュする。
+  // 全画面切替や画面離脱でエディタが外れてもメモを失わない（以前はタイマー解除のみで消えていた）。
   useEffect(() => {
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current)
+      }
+      if (latestContentRef.current !== savedContentRef.current) {
+        persistRef.current(latestContentRef.current)
       }
     }
   }, [])
@@ -163,6 +185,7 @@ export function SummaryEditor({ videoId, onSaved }: SummaryEditorProps) {
           <textarea
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
+            onBlur={() => handleSave()}
             className="w-full h-48 p-3 bg-transparent text-text-primary text-sm focus:outline-none resize-y"
             placeholder="動画で学んだことを自由にメモしてください..."
           />

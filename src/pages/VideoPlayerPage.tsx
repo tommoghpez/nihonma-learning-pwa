@@ -22,6 +22,8 @@ export function VideoPlayerPage() {
   const [hasPlayed, setHasPlayed] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [playerReady, setPlayerReady] = useState(false)
+  const [playerError, setPlayerError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const hasSeekedRef = useRef(false)
   const {
     isCompleted,
@@ -36,11 +38,21 @@ export function VideoPlayerPage() {
     if (id) fetchVideoById(id)
   }, [id])
 
-  // 動画が切り替わったら seek 状態をリセット
+  // 動画が切り替わったら seek 状態・エラーをリセット
   useEffect(() => {
     hasSeekedRef.current = false
     setPlayerReady(false)
+    setPlayerError(false)
   }, [id])
+
+  // 再生エラー時の手動リカバリ。プレイヤーを作り直し（key更新）、続きから再生し直せるようにする。
+  // 「ミスタップ後に枠だけ表示・二度と再生できない」状態からの復帰手段。
+  const handleReload = useCallback(() => {
+    setPlayerError(false)
+    setPlayerReady(false)
+    hasSeekedRef.current = false
+    setReloadKey((k) => k + 1)
+  }, [])
 
   // プレイヤー準備完了「かつ」進捗読込済みになった時点で続きから再生位置へシーク。
   // onReady と進捗取得は非同期で順序が不定なため、両方揃ってから一度だけ実行する。
@@ -65,6 +77,10 @@ export function VideoPlayerPage() {
     startTracking()
     setHasPlayed(true)
   }, [startTracking])
+
+  const handleError = useCallback(() => {
+    setPlayerError(true)
+  }, [])
 
   if (!id) return null
 
@@ -93,13 +109,26 @@ export function VideoPlayerPage() {
   return (
     <div className="space-y-4 -mx-4">
       <VideoPlayer
+        key={reloadKey}
         ref={playerRef}
         videoId={id}
         playbackRate={speed}
         onReady={handleReady}
         onPlay={handlePlay}
         onPause={stopTracking}
+        onError={handleError}
       />
+
+      {playerError && (
+        <div className="px-4">
+          <div className="flex items-center justify-between gap-3 rounded-card bg-red-50 border border-red-200 px-3 py-2">
+            <p className="text-sm text-red-700">動画の再生に問題が発生しました。</p>
+            <Button variant="ghost" size="sm" onClick={handleReload}>
+              再読み込み
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 space-y-4">
         <div className="flex items-center justify-between">
